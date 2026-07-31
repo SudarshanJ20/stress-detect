@@ -7,6 +7,10 @@ contribution: **forecasting stress 12–24h ahead**, not just detecting it.
 
 Academic research prototype — **not a medical device**, no diagnostic/clinical claims.
 
+Repo: https://github.com/SudarshanJ20/stress-detect
+The repo is **PUBLIC**. No participant data, participant/supervisor/examiner names,
+institution details, or ethics reference numbers go in any commit (see DON'Ts).
+
 ## This is a two-language monorepo
 - Android app (Kotlin) → `android/` — see **android/CLAUDE.md** for Android rules.
 - ML pipeline (Python) → `ml/` — see **ml/CLAUDE.md** for ML rules.
