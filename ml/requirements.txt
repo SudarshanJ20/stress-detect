@@ -1,0 +1,13 @@
+# Pin these to your Kaggle free-tier environment (versions left loose on purpose — TODO).
+# Do not guess exact versions here; the team pins against the runtime that trains.
+
+torch            # TODO pin
+pandas           # TODO pin
+numpy            # TODO pin
+scikit-learn     # TODO pin
+xgboost          # TODO pin  (baseline model)
+shap             # TODO pin  (explainability)
+pyarrow          # TODO pin  (Parquet I/O)
+matplotlib       # TODO pin
+onnx             # TODO pin  (export + metadata / SPEC_VERSION)
+onnxruntime      # TODO pin  (parity check vs. on-device runtime)
