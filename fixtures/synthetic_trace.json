@@ -1,0 +1,15 @@
+{
+  "spec_version": "v0.1.0",
+  "description": "Shared synthetic parity trace. No real participant data. Fill inputs and expected_features together when docs/feature-spec.md is locked; bump spec_version in lockstep. TODO placeholders must not be replaced with invented numbers.",
+  "inputs": {
+    "typing": "TODO",
+    "touch": "TODO",
+    "usage": "TODO",
+    "mobility": "TODO",
+    "sleep_proxy": "TODO",
+    "motion": "TODO",
+    "social": "TODO",
+    "ambient": "TODO"
+  },
+  "expected_features": "TODO"
+}
