@@ -1,0 +1,36 @@
+#!/bin/sh
+# Pre-commit data guard.
+#
+# Blocks committing data / model / secret blobs even if .gitignore is bypassed.
+# Anything under fixtures/ is explicitly exempt (the shared parity trace lives there).
+#
+# Install (local config, does NOT survive a clone — every collaborator must run it):
+#     git config core.hooksPath .githooks
+
+blocked=""
+
+# Staged files added/copied/modified/renamed, NUL-separated for path safety.
+staged=$(git diff --cached --name-only --diff-filter=ACMR -z | tr '\0' '\n')
+
+IFS='
+'
+for f in $staged; do
+    # Never block anything under fixtures/
+    case "$f" in
+        fixtures/*) continue ;;
+    esac
+    case "$f" in
+        *.parquet|*.csv|*.db|*.sqlite|*.sqlite3|*.onnx|*.pt|*.pth|*.pkl|*.keystore|*.jks)
+            blocked="$blocked  $f\n" ;;
+    esac
+done
+
+if [ -n "$blocked" ]; then
+    printf '\033[31mpre-commit blocked:\033[0m data/model/secret files must not be committed.\n'
+    printf 'Offending staged files:\n'
+    printf "$blocked"
+    printf 'Remove them from the index (git restore --staged <file>) and retry.\n'
+    exit 1
+fi
+
+exit 0
