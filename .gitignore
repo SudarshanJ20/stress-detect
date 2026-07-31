@@ -1,0 +1,52 @@
+# ── Data & snapshots (never commit participant or derived data) ──────────────
+# Ignore the CONTENTS of the data dirs (not the dirs themselves) so the
+# .gitkeep placeholders can be re-included below.
+ml/data/raw/*
+ml/data/processed/*
+# Belt-and-braces: data files by extension, anywhere in the tree.
+*.parquet
+*.csv
+*.db
+*.sqlite
+*.sqlite3
+
+# ── Model binaries ───────────────────────────────────────────────────────────
+*.onnx
+*.pt
+*.pth
+*.pkl
+*.tflite
+
+# ── Android ──────────────────────────────────────────────────────────────────
+.gradle/
+build/
+*.apk
+*.aab
+*.keystore
+*.jks
+local.properties
+.cxx/
+captures/
+
+# ── Python ───────────────────────────────────────────────────────────────────
+__pycache__/
+*.pyc
+.venv/
+venv/
+env/
+.ipynb_checkpoints/
+.pytest_cache/
+*.egg-info/
+
+# ── IDE / OS ─────────────────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.iml
+.DS_Store
+
+# ── Keep placeholders & fixtures tracked (MUST come AFTER the ignore rules) ───
+# Directory-content ignores above leave the parent dirs un-excluded, so these
+# re-includes are valid (git cannot re-include a file under an excluded dir).
+!**/.gitkeep
+!fixtures/
+!fixtures/**
