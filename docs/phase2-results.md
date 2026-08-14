@@ -298,3 +298,58 @@ self-report history alone is not supportable on this data** — yesterday explai
 today's movement, and behaviour adds nothing. Forecasting would require the *exogenous
 drivers* of daily stress (deadlines, exams, workload, events), not history alone.
 Experiment 5 tests exactly that.
+
+## Experiment 5 — do exogenous events explain it? (last diagnostic)
+
+Reproduce: `ml/.venv/bin/python ml/src/experiments/exp5_events.py`.
+
+**Structure first (decisive for deployability).** `education/deadlines.csv` is **PER-SUBJECT**
+— a matrix `uid × date`, each cell that student's deadline count that day, derived from their
+*own* enrolled courses (`class.csv`); 44/49 subjects (u00 absent). `calendar/` is
+**PER-SUBJECT** (28/49; fields `DATE, TIME, ACCOUNT_LABEL` — event *count* only, **no
+durations**). Cohort-wide (same for all on a date): `day_of_week`, `week_of_term`.
+
+| condition | n | MAE | Spearman |
+|---|---|---|---|
+| backbone only [current] | 1157 | 22.59 | −0.146 |
+| (i) events only | 1157 | 20.58 | +0.175 |
+| (ii) backbone + events (all) | 1157 | 22.08 | −0.025 |
+| **(iii) backbone + per-subject events** | 1157 | 22.65 | −0.151 |
+| — per-subject events only | 1157 | 20.72 | +0.201 |
+| — cohort-wide only | 1157 | 19.60 | +0.165 |
+| reference: subject-mean | 1157 | **16.95** | 0.47 |
+| reference: global-mean | 1157 | 19.94 | −0.52 |
+
+**Findings.** Per-subject events (deadlines/calendar) are the **first transferable signal**
+in the whole study — Spearman **+0.20**, correct sign, and computable for a real app user —
+versus passive behaviour's ~0. But it is far too weak: best event MAE ≈ 19.6–20.7, still
+**3–4 pts worse than the subject-mean baseline (16.95)** and nowhere near the ~19-pt real
+day-to-day signal. Combined with backbone (iii → 22.65), the backbone's negative transfer
+swamps it. Per-subject events (+0.20) are not merely the shared calendar (cohort-wide +0.17),
+but neither is remotely sufficient.
+
+**Decision rule fired:** (iii) MAE 22.65 does **not** beat subject-mean 16.95 → events do not
+rescue the task. Accept the null; no further day-level diagnostics.
+
+## Diagnosis complete — Phase 2 conclusion
+
+Five experiments, each ruling out a distinct explanation for the day-level null:
+
+| # | question | verdict |
+|---|---|---|
+| 1 | Is it the retrospective feature constraint? | **No** — full StudentLife sensor suite fails too (Δ MAE +0.09). |
+| 2 | Is it the 7-day window vs a momentary label? | **No** — 1/2/3/7-day windows all flat (~22 MAE). |
+| 3 | Is it LOSO's zero-history harshness? | **No** — personalization doesn't help; loses to personal mean. |
+| 4 | Is there anything real to predict? | **Yes** — 73% within-subject variance, ~19-pt real signal, not at ceiling. |
+| 5 | Do exogenous events explain it? | **No** — per-subject events show the first (weak, +0.20) signal but don't beat the mean. |
+
+**Conclusion.** In StudentLife, **momentary day-level EMA stress is dominated by real
+within-person day-to-day variation (73% of variance, ~19-pt SD of real signal) that is not
+recoverable from any available observational feature** — passive behaviour, temporal
+persistence (within-subject autocorrelation 0.26, R² 0.07), or per-subject event load. The
+only predictable component is the person's **trait level** (subject-mean MAE 16.95). This is
+a robust, well-evidenced negative result. It does **not** condemn the product idea; it says
+the *day-level momentary target on this dataset* is the wrong place to prove it. Next step:
+test a coarser **period-level (weekly) construct**, where averaging removes day noise — and
+if that also fails to beat the subject-mean, stop modelling on StudentLife and wait for
+GLOBEM (purpose-built for momentary affect).
