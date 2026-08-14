@@ -1,7 +1,7 @@
 # Feature Specification — SINGLE SOURCE OF TRUTH
 
 ```
-SPEC_VERSION: v0.3.0
+SPEC_VERSION: v0.4.0
 ```
 
 This file is **authoritative**. Both the Android extractor (`android/…/features`) and the
@@ -181,39 +181,113 @@ The retrospective analysis/aggregation window is fixed at **7 days**. Rationale:
 - It **matches K-EmoPhone's 7-day collection window**, keeping our retrospective baseline
   comparable to that reference dataset.
 
+### 6. Implemented backbone/aux features & thresholds (Phase 2)
+
+**Timezone.** All clock/date/night/sleep computation localizes epochs to
+`America/New_York` (Dartmouth, spring 2013). **Asserted at runtime**
+(`guards.assert_timezone`) — a wrong zone silently corrupts every clock feature.
+
+**Thresholds** (single source: `ml/src/features/spec_constants.py`; each with rationale):
+
+| constant | value | rationale |
+|---|---|---|
+| `WINDOW_DAYS` | 7 | analysis window (§5) |
+| `COVERAGE_MIN_DAYS` | 3 | drop a subject-day whose 7-day window has <3 days of phonelock — too little to summarize |
+| `MIN_SLEEP_MINUTES` | 90 | a locked interval shorter than this is a nap/idle, not main sleep |
+| `SLEEP_MIDPOINT_BAND` | 20:00–12:00 | main sleep = longest locked interval whose local midpoint falls in this overnight band |
+| `MAX_SESSION_MINUTES` | 180 | gaps between locks longer than this are phone-off/missing-data, not real use (screens auto-lock in minutes) |
+| circular stats | — | clock-time central tendency/regularity use the mean-resultant vector so the midnight wrap is handled (regularity = circular SD) |
+| duplicate-window collapse | — | adjacent subject-days with identical feature vectors (sparse-data artifact) are collapsed to one sample (label averaged) so they don't double-count in a LOSO fold |
+
+**Backbone features** (from phonelock LOCKED intervals; `python_source =
+ml/src/features/screenlock_features.py`; window = 7 d; missing → `NaN`, native to XGBoost):
+sleep — `sleep_duration_median`, `sleep_onset_hours`, `sleep_wake_hours`,
+`sleep_onset_regularity` (circular SD), `sleep_midpoint_regularity`, `n_sleep_nights`;
+usage — `unlock_count_per_day_mean`, `unlock_count_sd`, `session_count_per_day_mean`,
+`session_duration_median`, `session_duration_iqr`, `screen_on_fraction`;
+night — `nighttime_use_fraction_personal`, `nighttime_unlock_per_day_personal` (person-
+relative = each subject's own [median onset, median wake]; **primary**), plus
+`nighttime_use_fraction_fixed`, `nighttime_unlock_per_day_fixed` (00:00–06:00, ablation only);
+circadian — `circadian_regularity` (mean pairwise corr of daily hourly-use profiles);
+coverage — `days_with_data`.
+
+**Auxiliary features** (`aux_features.py`) — call/SMS, each with a mandatory `*_present`
+missingness flag per §1: `call_count_per_day` + `call_present`, `sms_count_per_day` +
+`sms_present`. Value is 0 when the subject lacks the stream, but `*_present=0` marks it.
+
+**Sample = one subject-day** with ≥1 valid EMA (not one per EMA response — response-level
+samples share ~99% of their 7-day window and collapse the effective n). Features come from
+the 7-day window ending at that day's local-midnight boundary (the labelled day's own
+behaviour never enters its features). Gated by `COVERAGE_MIN_DAYS`.
+
+**Phase-2 result (honest).** With these backbone features + an XGBoost baseline under LOSO,
+the model does **not** beat the per-subject-mean baseline (regression MAE 22.6 vs subject-
+mean 17.0; Spearman −0.15) and sits at/below chance for the binary target (AUC ≈ 0.41).
+In-sample fit is near-perfect (Spearman 0.92) and univariate feature↔stress correlations are
+all |ρ| ≤ 0.14, so this is a **true null / negative-transfer** result, not a pipeline bug:
+screen/lock behaviour alone does not carry cross-subject momentary-stress signal in
+StudentLife. Motivates personalization / self-baseline and richer features in later phases.
+Full numbers: `ml/src/training/run_baseline.py` output + `data/processed/baseline_metrics_v0.4.0.json`.
+
 ---
 
 ## Label decoding — Stress EMA
 
 The bootstrap stress label is the StudentLife **Stress EMA** (`EMA/response/Stress/`),
-item `level`. Its 1–5 scale is **NON-MONOTONIC** and must be decoded before use.
+item `level`, question_text **"Right now, I am..."**.
 
-Raw option → meaning (from `EMA/EMA_definition.json`):
+**Verbatim anchors** (from `EMA/EMA_definition.json`, item `level`):
 
-| raw `level` | meaning | valence |
-|---|---|---|
-| 1 | A little stressed | stressed |
-| 2 | Definitely stressed | stressed |
-| 3 | Stressed out | stressed (most) |
-| 4 | Feeling good | positive |
-| 5 | Feeling great | positive (most) |
+| raw `level` | verbatim anchor |
+|---|---|
+| 1 | `A little stressed` |
+| 2 | `Definitely stressed` |
+| 3 | `Stressed out` |
+| 4 | `Feeling good` |
+| 5 | `Feeling great` |
 
-Key point: values **1→3 increase in stress**, then **4→5 jump to positive affect** and
-*decrease* in stress. The axis is not ordinal — a higher number is **not** "more stress".
+The RAW numbering is **NOT monotonic** on a stress/wellbeing axis: 1→3 is *ascending
+stress* (a little → definitely → stressed out) and 4→5 is *ascending positive affect*.
+So raw 3 is the MOST stressed and raw 1 ("a little stressed") is the mildest/near-baseline
+— **not** a monotonic 1..5 scale.
 
-**Correct decoding** (canonical binary target; both extractors MUST agree):
-- `stressed`   ← `level ∈ {1, 2, 3}`
-- `not_stressed` ← `level ∈ {4, 5}`
-- responses with **no `level`** (location-only pings; ~10% of Stress entries) are **not
-  labels** — drop them, do not coerce to 0.
+### Ordinal remap (this is what makes the scale usable)
+Ordered by wellbeing, the anchors are monotonic under the permutation
+`3 "Stressed out" < 2 "Definitely stressed" < 1 "A little stressed" < 4 "Feeling good" < 5 "Feeling great"`.
+Apply this remap to get a genuine 5-point ordinal (higher = better wellbeing / less stress):
 
-**Worked example.** A participant's Stress responses in a window are
-`level = [4, 1, 5, 3, 2]`:
-- Naive (WRONG) mean = `(4+1+5+3+2)/5 = 3.0` → looks "mid/stressed-out", which is
-  meaningless because the scale isn't ordinal.
-- Correct decode → `[not_stressed, stressed, not_stressed, stressed, stressed]` →
-  3 stressed / 2 not-stressed → **stressed fraction = 0.6**.
+| raw `level` | 3 | 2 | 1 | 4 | 5 |
+|---|---|---|---|---|---|
+| **remapped ordinal** | 0 | 1 | 2 | 3 | 4 |
 
-**Prohibited:** never average, sum, or treat raw `level` as ordinal/continuous; never feed
-raw `level` to the model as a numeric target or feature. Always decode to the categorical
-scheme above (or an explicitly documented alternative recorded in this section) first.
+Reasoning: the remap preserves **all** responses (2167) instead of discarding the 45% at
+level 1, and it turns a non-monotonic scale into a defensible ordinal that can be averaged
+under the standard **Likert caveat** (equal spacing between anchors is *assumed*, not
+measured). Implemented in `ml/src/features/labels.py::remap_level`; constants in
+`ml/src/features/spec_constants.py::RAW_TO_ORDINAL`.
+
+### The ordinal rule (replaces the old "never treat as ordinal")
+- The **RAW** 1–5 scale must **never** be averaged, summed, or compared — it is meaningless
+  as a number. Stored as an **unordered pandas Categorical** so any arithmetic raises
+  (`guards.assert_raw_scale_protected`; the assertion fires on operations against the RAW
+  scale specifically).
+- The **REMAPPED** ordinal (0–4) **may** be averaged/compared, with the Likert caveat above.
+
+### Targets
+- **PRIMARY — regression.** Per subject-day: `stress_score = (4 − mean(remapped)) / 4 × 100`,
+  a 0–100 score where **100 = most stressed**. This is what the app displays, so it is what
+  we optimise. Uses every subject-day with ≥1 valid EMA.
+- **SECONDARY — binary (subset).** `{2,3}` = stressed vs `{4,5}` = not; **level 1 dropped**
+  as ambiguous. Subject-day label = majority of that day's non-level-1 responses (ties → drop).
+  Report on this subset only, with its own `n` stated so it is not confused with the
+  regression `n`.
+
+**Worked example.** A subject-day's responses are raw `level = [4, 1, 5, 3, 2]`:
+- Remap → `[3, 2, 4, 0, 1]`; mean = 2.0; `stress_score = (4−2.0)/4×100 = 50.0`.
+- Binary subset (drop the level-1) → raw `[4,5,3,2]` → not,not,stressed,stressed → tie → **dropped**.
+- Naive mean of the RAW numbers (2.0→"stressed out"-ish) is meaningless and **forbidden**.
+
+**Limitation (recorded).** 122 entries store a bare digit under a `"null"` key
+(`bare:1`=39, `bare:2`=22, `bare:3`=44, `bare:4`=15, `bare:5`=2) plus 9 `Unknown` and 109
+coordinate strings. These *might* be mis-keyed levels but are indistinguishable from
+location answers, so all no-`level` entries (241 total) are **dropped, not recovered**.
