@@ -260,3 +260,41 @@ little real variation to predict" — those need opposite responses.
 *Data-quality note:* several `gps` files carry header rows repeated mid-file (concatenated
 Kaggle export); the extended-stream readers coerce timestamps to numeric and drop those
 junk rows. Recorded in `docs/dataset-inventory.md`.
+
+## Experiment 4 — is there anything to predict? (label noise floor)
+
+Reproduce: `ml/.venv/bin/python ml/src/experiments/exp4_label_noise.py`. This distinguishes
+*"behaviour doesn't predict real variation"* from *"there is little real variation to
+predict"* — opposite problems needing opposite responses.
+
+| quantity | value |
+|---|---|
+| **ICC(1)** of subject-day `stress_score` | **0.27** → 27% between-subject, **73% within-subject (day-to-day)** |
+| between-subject SD / within-subject SD | 13.2 / **21.4** |
+| within-day EMA disagreement (MAD, per-response 0–100) | **8.9** = measurement noise floor (irreducible) |
+| ⇒ real day-to-day signal SD (√(21.4² − 8.9²)) | **≈ 19 pts** — far above the 8.9 noise floor |
+| within-subject lag-1 autocorrelation | **r = 0.26, R² = 0.07** (only 7% of day-to-day movement is autocorrelated) |
+| noise floor vs subject-mean MAE (8.9 / 16.9) | 0.52 |
+
+**The task is NOT at ceiling — there is substantial real variation to explain.** 73% of
+stress variance is within-subject day-to-day, and only ~9 of the 21.4-pt within-subject SD
+is measurement noise, leaving a real day-to-day signal of **~19 pts SD**. (The subject-mean
+baseline "won" Phase 2 only because behaviour features added negative value — with ICC 0.27
+it can itself explain just 27% of the variance.)
+
+**But that real signal is captured by neither of the obvious sources.** Passive behaviour
+misses it (Exps 1–3), and within-person **lag-1 autocorrelation is only 0.26 (R² 0.07)**, so
+persistence/AR won't recover it either (persistence MAE 17.4 *loses* to subject-mean 16.2).
+
+> **Use the within-subject autocorrelation (0.26), never the pooled 0.48.** The pooled
+> lag-1 correlation across all subject-days is +0.48, but that is inflated by stable
+> between-subject *trait* means (person A always high, person B always low → adjacent days
+> of the same person correlate for reasons unrelated to temporal dynamics). Mean-centering
+> each subject removes the trait level and leaves the true day-to-day momentum: **0.26**.
+
+**Explicit consequence for the headline claim:** with within-person day-to-day
+autocorrelation of only **0.26 (R² 0.07)**, **12–24 h stress forecasting from behavioural /
+self-report history alone is not supportable on this data** — yesterday explains ~7% of
+today's movement, and behaviour adds nothing. Forecasting would require the *exogenous
+drivers* of daily stress (deadlines, exams, workload, events), not history alone.
+Experiment 5 tests exactly that.
