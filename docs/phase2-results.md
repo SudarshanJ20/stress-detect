@@ -199,5 +199,64 @@ subject  n  pos_rate  macro_F1  ROC_AUC
   backbone alone is insufficient as a cross-subject predictor.
 - **Doesn't (yet):** whether the cause is the retrospective *constraint*, the *task/label*
   being intrinsically hard, a *window↔label temporal mismatch*, or the *harshness of
-  zero-history LOSO*. Three diagnostic experiments isolate each — results appended below /
-  in a follow-up.
+  zero-history LOSO*. Three diagnostic experiments isolate each — below.
+
+## Diagnostics (Experiments 1–3): why the null?
+
+Reproduce: `ml/.venv/bin/python ml/src/experiments/run_experiments.py`. Same subject-day
+samples, same labels, same LOSO. Regression MAE (lower is better):
+
+| condition | n | MAE | RMSE | Spearman |
+|---|---|---|---|---|
+| **reference: subject-mean baseline** | 1157 | **16.95** | 21.84 | 0.47 |
+| reference: global-mean baseline | 1157 | 19.94 | 25.51 | −0.52 |
+| LOSO backbone (7d) — current | 1157 | 22.59 | 28.45 | −0.146 |
+| Exp1: backbone + extended streams | 1157 | 22.68 | 28.28 | −0.124 |
+| Exp1: extended-only (conv/activity/audio/gps/dark) | 1157 | 21.91 | 27.60 | 0.002 |
+| Exp2: backbone 1d window | 1131 | 22.42 | 27.98 | −0.120 |
+| Exp2: backbone 2d window | 1148 | 21.67 | 27.45 | −0.066 |
+| Exp2: backbone 3d window | 1154 | 22.35 | 27.96 | −0.111 |
+
+Exp3 — personalized (train on each subject's first *k* chronological days, test on the rest):
+
+| k own days in train | test n | model MAE | personal train-mean MAE |
+|---|---|---|---|
+| 3 | 1017 | 22.57 | 21.30 |
+| 5 | 929 | 22.58 | 19.62 |
+| 10 | 726 | 23.03 | 19.50 |
+
+**Three-way falsification** — each experiment rules out one candidate cause:
+1. **Exp 1 (ceiling): the retrospective constraint is NOT the cause.** Adding the
+   out-of-scope streams StudentLife's own analyses used (conversation, activity, audio,
+   GPS, dark) changes MAE by **+0.09** (nothing); extended-only is Spearman **0.002** and
+   *worse* than the global mean. No achievable ceiling is being forfeited by the
+   retrospective restriction — the full sensor suite fails at *this* task too.
+2. **Exp 2 (window): the 7-day window is NOT the cause.** 1/2/3/7-day windows are all flat
+   at ~22 MAE with negative Spearman. No window predicts a momentary label; it is not a
+   temporal-window mismatch. (PSS survey is unusable: 46 subjects, 85 responses, ~1–2 each.)
+3. **Exp 3 (LOSO harshness): zero-history evaluation is NOT the cause.** Giving the model
+   the subject's own early days doesn't help (MAE stays ~22.6 and loses to the personal
+   train-mean baseline at every k). Personalizing the *mean* helps (21.3→19.5); the
+   *features* add nothing on top — they don't track day-to-day stress even within a person.
+
+**The crux — do not lose this.** StudentLife's published signal was for **term-level trait
+outcomes** (PHQ-9 depression, GPA, loneliness), aggregated over the whole 10-week term —
+**not** momentary per-day EMA stress evaluated leave-one-subject-out. Our task is a
+fundamentally different and harder one. All three experiments converge: the null is **not**
+our retrospective scope, our window, or our evaluation — it is that **momentary EMA stress
+is essentially unpredictable from passive phone behaviour at day granularity in
+StudentLife**, at any window, any feature set, personalized or not. The only predictive
+structure in these data is each person's **trait mean** (subject-mean MAE 16.95); day-to-day
+movement around it is ~noise with respect to behaviour.
+
+**Product implication (for decision, not yet acted on).** The "forecast day-to-day stress
+from passive behaviour" claim is *not supported by StudentLife*; the between-person
+self-baseline is. Open directions: change the label to a construct with signal (e.g. PHQ-9),
+lean on K-EmoPhone / GLOBEM (purpose-built for momentary affect) once access lands, or
+reframe the product around the personal baseline. **Experiment 4** (label noise floor)
+decides whether the problem is "behaviour doesn't predict real variation" or "there is
+little real variation to predict" — those need opposite responses.
+
+*Data-quality note:* several `gps` files carry header rows repeated mid-file (concatenated
+Kaggle export); the extended-stream readers coerce timestamps to numeric and drop those
+junk rows. Recorded in `docs/dataset-inventory.md`.
