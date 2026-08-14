@@ -31,6 +31,12 @@ BINARY_DROP_RAW = frozenset({1})
 WINDOW_DAYS = 7               # analysis window (spec §5): queryEvents ~10d retention is binding
 COVERAGE_MIN_DAYS = 3         # drop a subject-day whose 7-day window has < this many days of data
 
+# Weekly-aggregation target (Phase 2 period-level diagnostic): a subject-week label is the
+# mean remapped stress over that week's responses. Require this many responses/week so a
+# sparse week's noisy mean doesn't enter — median is 5/wk; >=3 keeps 75% of weeks and 47/48
+# subjects while ~halving the weekly-mean standard error vs a 1-response week.
+MIN_RESPONSES_PER_WEEK = 3
+
 # A gap between consecutive LOCKED intervals is treated as a phone-in-use session only if
 # it is <= this long. Screens auto-lock after minutes, so a multi-hour "unlocked" gap is
 # missing lock events / phone-off, not real use — counting it inflates screen-on time.
