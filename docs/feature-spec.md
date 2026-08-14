@@ -1,7 +1,7 @@
 # Feature Specification — SINGLE SOURCE OF TRUTH
 
 ```
-SPEC_VERSION: v0.4.0
+SPEC_VERSION: v0.5.0
 ```
 
 This file is **authoritative**. Both the Android extractor (`android/…/features`) and the
@@ -286,6 +286,14 @@ measured). Implemented in `ml/src/features/labels.py::remap_level`; constants in
 - Remap → `[3, 2, 4, 0, 1]`; mean = 2.0; `stress_score = (4−2.0)/4×100 = 50.0`.
 - Binary subset (drop the level-1) → raw `[4,5,3,2]` → not,not,stressed,stressed → tie → **dropped**.
 - Naive mean of the RAW numbers (2.0→"stressed out"-ish) is meaningless and **forbidden**.
+
+### Weekly aggregation (period-level target — Phase 2 diagnostic)
+After the day-level target proved a well-evidenced null (`docs/phase2-results.md`), a
+coarser **subject-week** target is tested: label = mean remapped stress over all valid
+responses in that week (rescaled 0–100). A subject-week is kept only with
+**`MIN_RESPONSES_PER_WEEK = 3`** responses — median is 5/week (IQR 3–8), so ≥3 keeps 75% of
+weeks and 47/48 subjects while ~halving the weekly-mean standard error vs a 1-response week
+(9.4/√1 → 9.4/√3 ≈ 5.4). Recorded in `ml/src/features/spec_constants.py`.
 
 **Limitation (recorded).** 122 entries store a bare digit under a `"null"` key
 (`bare:1`=39, `bare:2`=22, `bare:3`=44, `bare:4`=15, `bare:5`=2) plus 9 `Unknown` and 109
