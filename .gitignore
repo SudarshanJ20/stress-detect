@@ -28,6 +28,9 @@ local.properties
 .cxx/
 captures/
 
+# ── Throwaway tooling (disposable, never part of the product) ────────────────
+tools/device-probe/
+
 # ── Python ───────────────────────────────────────────────────────────────────
 __pycache__/
 *.pyc
