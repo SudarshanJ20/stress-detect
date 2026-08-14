@@ -20,9 +20,15 @@ analysis window fixed.
 - **Exit:** `docs/dataset-inventory.md`, `docs/device-probe-results.md`, and
   `docs/feature-spec.md` (scope + 7-day window) all recorded. ✅
 
-## Phase 2 — Pipeline + baseline
+## Phase 2 — Pipeline + baseline &nbsp;`[COMPLETE]`
 StudentLife ETL → Parquet, feature extraction, XGBoost, LOSO harness.
-- **Exit:** a real LOSO number from an XGBoost baseline on StudentLife.
+- **Exit met:** a real LOSO number — and it is a **validated null**. Screen/lock (and the
+  full StudentLife sensor suite) do not predict momentary EMA stress at day *or* week level;
+  the only predictable structure is the per-person trait mean. Fully diagnosed across
+  Experiments 1–6 (`docs/phase2-results.md`, `docs/findings-summary.md`). ✅
+- The **harness is dataset-agnostic** (ETL → remapped labels → backbone features → LOSO →
+  guards → global/subject-mean baselines) and re-runs unchanged on **GLOBEM / K-EmoPhone**,
+  which are purpose-built for momentary affect. No further modelling on StudentLife.
 
 ## Phase 3 — Feature lock
 Reconcile K-EmoPhone / GLOBEM schemas *if* access lands; finalize the feature contract.
