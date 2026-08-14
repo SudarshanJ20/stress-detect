@@ -353,3 +353,56 @@ the *day-level momentary target on this dataset* is the wrong place to prove it.
 test a coarser **period-level (weekly) construct**, where averaging removes day noise — and
 if that also fails to beat the subject-mean, stop modelling on StudentLife and wait for
 GLOBEM (purpose-built for momentary affect).
+
+## Experiment 6 — weekly (period-level) target
+
+Reproduce: `ml/.venv/bin/python ml/src/experiments/exp6_weekly.py`. Label = mean remapped
+stress over a subject-week; keep weeks with **≥3 responses** (`MIN_RESPONSES_PER_WEEK`,
+recorded in spec v0.5.0). 345 subject-weeks → **252 kept** (≥3 resp + ≥3-day coverage), 47
+subjects. Backbone features over the same week; same LOSO, guards, baselines.
+
+| condition | n | MAE | RMSE | Spearman |
+|---|---|---|---|---|
+| XGBoost backbone (weekly) | 252 | 16.14 | 20.89 | **0.023** |
+| baseline: global mean | 252 | 14.94 | 19.18 | −0.67 |
+| **baseline: subject mean** | 252 | **11.41** | 15.55 | 0.571 |
+
+Week-level **ICC(1) = 0.42** (day-level 0.27): between-SD 12.3, within-SD 14.6 (down from
+21.4 — averaging removed day noise). Estimated week-level label noise floor ≈ 3.8
+(9.4/√6 median responses).
+
+### The aggregation trap (the most instructive finding in the chain)
+Read only the model's own MAE and weekly aggregation looks like a breakthrough — but it is
+a mirage created entirely by an easier target:
+
+- **Model MAE improved 22.59 → 16.14** (day → week). Looks like progress.
+- **Over the *same* change, the subject-mean baseline improved 16.95 → 11.41.** The floor
+  moved further than the model.
+- **ICC rose 0.27 → 0.42.** Averaging removed within-subject day noise, so between-subject
+  trait differences now dominate — the target got *easier*, the model did not get *better*.
+- **Gap to baseline (report both precisely):** day-level model − baseline = 22.59 − 16.95 =
+  **5.64 MAE** (model 33% worse); week-level = 16.14 − 11.41 = **4.73 MAE** (model **41%
+  worse**). Against the now-stronger baseline the model fell **proportionally further
+  behind** (33% → 41%), even as the absolute gap edged from 5.64 to 4.73.
+- **Spearman = 0.023** confirms **zero behavioural signal** at week level — the model can't
+  even beat the global mean (14.94).
+
+**Stated plainly: reporting the weekly MAE (16.14, "much better than 22.59") *without the
+baseline* would have looked like a successful result — and it would have been wrong.** The
+subject-mean baseline (11.41) exposes it as a loss. This is exactly why baseline reporting
+against BOTH global-mean and subject-mean is non-negotiable in this project, and why a
+Spearman near zero is worth more than a MAE that dropped for the wrong reason.
+
+## StudentLife modelling — CLOSED
+
+Per the pre-committed decision rule, the weekly model failing to beat the subject-mean ends
+StudentLife modelling. **Verdict:** StudentLife cannot demonstrate passive-behaviour → stress
+prediction at **any** granularity (day *or* week); at every level the only predictable
+structure is the person's trait mean, and behaviour adds negative value. This is a robust,
+fully-diagnosed null (Experiments 1–6), not an artefact of scope, window, evaluation, label
+aggregation, or missing event data.
+
+**The pipeline is validated and dataset-agnostic** — ETL → remapped labels → backbone
+features → LOSO harness → guards → global-mean & subject-mean baselines. The next dataset
+(**GLOBEM**, and K-EmoPhone when access lands — both purpose-built for momentary affect)
+re-runs this exact harness unchanged. No further modelling on StudentLife.
