@@ -1,13 +1,15 @@
-# Pin these to your Kaggle free-tier environment (versions left loose on purpose — TODO).
-# Do not guess exact versions here; the team pins against the runtime that trains.
+# Phase 2 baseline stack — pinned to the gitignored ml/.venv (Python 3.9, arm64 macOS).
+# xgboost needs the OpenMP runtime present (macOS: `brew install libomp`).
+numpy==1.26.4
+pandas==2.2.3
+scipy==1.13.1
+scikit-learn==1.5.2
+xgboost==2.1.4
+shap==0.46.0            # explainability (used from Phase 4)
+matplotlib==3.9.2
+pyarrow==17.0.0         # Parquet I/O
 
-torch            # TODO pin
-pandas           # TODO pin
-numpy            # TODO pin
-scikit-learn     # TODO pin
-xgboost          # TODO pin  (baseline model)
-shap             # TODO pin  (explainability)
-pyarrow          # TODO pin  (Parquet I/O)
-matplotlib       # TODO pin
-onnx             # TODO pin  (export + metadata / SPEC_VERSION)
-onnxruntime      # TODO pin  (parity check vs. on-device runtime)
+# Later phases (pin against the Kaggle training runtime when reached; NOT installed here):
+# torch            # Phase 4 deep models
+# onnx             # Phase 6 export (+ SPEC_VERSION metadata)
+# onnxruntime      # Phase 6 parity vs on-device
