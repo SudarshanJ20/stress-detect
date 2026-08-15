@@ -28,6 +28,9 @@ local.properties
 .cxx/
 captures/
 
+# ── Model assets staged into the app (binaries are exported, never committed) ─
+android/app/src/main/assets/
+
 # ── Throwaway tooling (disposable, never part of the product) ────────────────
 tools/device-probe/
 
