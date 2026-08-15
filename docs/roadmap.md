@@ -79,10 +79,42 @@ Konsist architecture tests.
   suites (the fixture is still `TODO`), and ONNX inference (`inference/` is an interface
   carrying the §7 input contract).
 
-## Phase 6 — Parity + ONNX
+## Phase 6 — Parity + ONNX &nbsp;`[COMPLETE]`
 Kotlin feature extraction == Python on the shared fixture; model export.
-- **Exit:** parity test GREEN on `fixtures/synthetic_trace.json`; ONNX exported with
-  `SPEC_VERSION` embedded in metadata.
+- **Exit met:** `fixtures/synthetic_trace.json` now holds **13 cases**, each targeting one
+  named spec rule (midnight-wrap sleep, both sleep-band edges, the 90-min and 180-min
+  cutoffs, coverage gate, intervals open at each window edge, empty window, DST in **both**
+  directions, the band-edge tie-break, and `days_with_data = 8`). Python
+  (`ml/tests/test_parity_fixture.py`) and Kotlin (`FixtureParityTest`) both run it to
+  **1e-6**, with the zone passed explicitly and a test asserting the run FAILS under the
+  device zone. ✅
+- **On-device inference verified on an emulator** (API 35): ONNX Runtime Mobile vs PyTorch
+  over all 13 cases, **max|diff| = 7.63e-6 ≤ 1e-5**. `OnnxStressModel` refuses to load a
+  model whose `spec_version` metadata disagrees with the extractor, and standardizes from
+  the scaler embedded in the model's metadata. ✅
+- **SPEC_VERSION agreement across all four** — doc, `spec_constants.py`, `SpecConstants.kt`
+  (`SpecVersionTest`) and the ONNX metadata (`OnnxParityTest`). `SharedConstantsTest` extends
+  this to every mirrored threshold, so a value can no longer drift on one side alone.
+- **The fixture earned its keep on the first run**, catching a bug no unit test could have:
+  the JVM and numpy differ by ~1 ULP in `cos`/`sin`/`atan2`, which flipped a person-relative
+  night-band boundary decision (0.0 vs 0.75) for the common case of a subject whose unlock
+  time equals their own mean wake time — 12 such places in the real corpus. A boolean flip
+  cannot be absorbed by a tolerance, so the comparison itself was made deterministic:
+  **`BAND_EDGE_EPS`**, applied identically in both extractors (feature-spec §9).
+  `SPEC_VERSION` → **v0.7.0**, model retrained and re-exported; **every headline number is
+  unchanged** (MAE 20.76 ± 0.10, Spearman −0.116, 14/48), confirmed by re-running the
+  pipeline rather than assumed.
+- **Both guards verified to FAIL when violated**, not just to pass: perturbing
+  `MAX_SESSION_MINUTES` and swapping the window to calendar arithmetic each broke the
+  fixture (the latter by exactly 3600 s on the DST cases), and skipping standardization
+  broke the on-device test by 14 stress points.
+- **Two lessons recorded for later phases** (feature-spec §10): the exported model had no
+  scaler, so the app would have fed raw features to a model expecting z-scores and shown a
+  plausible wrong score (62.60 vs 48.54) with no crash — a model artifact without its
+  preprocessing is incomplete, and the loader now refuses such a file. And the DST
+  perturbation failed ONLY the window-bounds assertion, with no feature changing on any of
+  the 13 cases — so a parity test that compares only final outputs can certify a wrong
+  intermediate; pin the intermediates too.
 
 ## Phase 7 — UI + demo
 Result screen (stress percentage, contributing factors, suggestions) and a trend chart.
