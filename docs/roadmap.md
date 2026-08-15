@@ -35,16 +35,27 @@ Reconcile K-EmoPhone / GLOBEM schemas *if* access lands; finalize the feature co
 - **Exit:** `SPEC_VERSION` locked; every `feature-spec.md` `TODO` filled (schemas reconciled,
   or reconciliation explicitly deferred if access hasn't arrived).
 
-## Phase 4 — Deep models
-Multimodal / temporal encoders, regression head with calibration, SHAP attribution,
-cross-dataset evaluation, ablations vs. the XGBoost baseline.
-- **Exit:** DL results reported against XGBoost, with cross-dataset eval + ablations + SHAP.
+## Phase 4 — Deep models &nbsp;`[COMPLETE on StudentLife]`
+Temporal encoders over the 7-day daily sequence, calibration, SHAP attribution, ablations
+vs. the XGBoost baseline, ONNX export + runtime parity.
+- **Exit met:** CNN-LSTM (5 seeds) + TinyTransformer (ablation) reported against XGBoost and
+  BOTH baselines (`docs/phase4-results.md`). The sequence representation stably beats flat
+  XGBoost (22.59 → 20.76 ± 0.10) yet is **still a null** (below global-mean 19.94, 3.8 off
+  subject-mean 16.95) — which closes the "model-too-simple" objection to the Exp 1–6 chain.
+  SHAP attribution + ONNX export (PyTorch↔ORT parity ≤ 1e-5, `SPEC_VERSION` in metadata)
+  built and validated; `ml/tests/test_spec_version.py` guards code↔doc drift. ✅
+- **Deferred to GLOBEM:** cross-dataset evaluation (StudentLife has no signal to transfer).
+  The temporal-DL + attribution + ONNX infra re-runs unchanged there.
 
 ## Phase 5 — Android app
 On-device historical queries, feature extraction matching the Python pipeline, Room caching,
 Konsist architecture tests.
 - **Note:** **Health Connect is OUT OF SCOPE** — the device probe returned **0 records**
   (Sleep and Steps); nothing writes to it, so it cannot seed the retrospective baseline.
+- **SPEC_VERSION guard (mirror of `ml/tests/test_spec_version.py`):** an Android unit/Konsist
+  test MUST assert the Kotlin `SPEC_VERSION` equals the one in `docs/feature-spec.md` and the
+  ONNX metadata, failing the build on drift. Silent code/doc/model drift is the exact failure
+  the version field exists to catch (Phase 6 parity depends on it).
 - **Exit:** app reconstructs the 7-day feature window on-device from historical queries;
   Konsist tests green.
 
