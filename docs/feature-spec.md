@@ -343,6 +343,29 @@ identical zone ⇒ identical vectors, which is what the parity test asserts. A p
 passed only because both sides happened to read the same ambient zone would be worthless, so
 it must never rely on the default.
 
+**Window arithmetic is ABSOLUTE, not calendar — found during the Phase-5 port.** Python
+computes the window start as `w0 = w1 - pd.Timedelta(days=WINDOW_DAYS)`, and a pandas
+`Timedelta` is an **absolute** duration: exactly 7 × 86 400 s. Kotlin's natural equivalent,
+`LocalDate.minusDays(7)` / `Period.ofDays(7)`, is **calendar-aware** and preserves wall-clock
+time. On any ordinary week the two agree exactly, which is what makes this dangerous.
+
+Across a DST boundary they diverge by an hour. Worked example, verified against the Python
+extractor: for a window ending at local midnight on **2013-03-11** (US DST began
+2013-03-10), Python yields `w0 = 1362369600` = **2013-03-03 23:00 local** — *not* midnight.
+`minusDays` would have yielded 2013-03-04 00:00, an hour later, silently including or
+excluding an hour of real behaviour at the window edge.
+
+`AnalysisWindow` therefore does **second arithmetic** (`end − WINDOW_DAYS × SECONDS_PER_DAY`)
+to reproduce pandas exactly, and `AnalysisWindowTest` pins the epochs above.
+
+Why this is recorded rather than just fixed: the bug would have fired **twice a year**, for
+one week each time, on a subset of windows — and it would have surfaced only as a slightly
+wrong stress prediction, with no exception, no failing assertion, and no log line. Nothing
+about a wrong number on screen points back at a calendar-vs-absolute duration two layers
+down. **Rule: any duration that mirrors a pandas `Timedelta` must be expressed in seconds on
+the Kotlin side.** Same for the per-day bounds in the sequence dataset (`_day_bounds` adds
+`Timedelta(days=1)`, i.e. 86 400 s, to a local midnight).
+
 **Not backbone.** `queryUsageStats(INTERVAL_DAILY)` per-app buckets are cached as
 low-resolution context only. Per §2 the StudentLife `app_usage` RUNNING_TASKS poll is *not*
 equivalent to them, and that mapping is **not** justified here — so no feature may be built
@@ -352,6 +375,33 @@ on them under this SPEC_VERSION.
 version bump invalidates rather than silently reuses vectors computed under older rules. Raw
 derived events are persisted at first run because `queryEvents` retention (~10 d) means
 anything not captured then is unrecoverable.
+
+**Recorded during the Phase-5 port — `days_with_data` can exceed `WINDOW_DAYS`.** Coverage
+counts the distinct local dates touched by any locked interval *after clipping to the
+window*. An interval straddling the window's end clips to exactly `w1` = the label day's
+local midnight, whose date is the label day itself, so a 7-day window can report **8**
+days of coverage (reproduced from the Python extractor in the Kotlin parity test). Because
+`days_with_data` is the denominator of `unlock_count_per_day_mean`,
+`session_count_per_day_mean`, `nighttime_unlock_per_day_*` and `screen_on_fraction`, those
+rates are slightly deflated whenever it happens, and the `COVERAGE_MIN_DAYS` gate is
+correspondingly slightly loose — a window with 7 real days plus the clipped boundary date
+passes a gate meant to require 3 days of *actual* data.
+
+**This was mirrored, not fixed, and the distinction matters.** The Kotlin port reproduces
+the behaviour deliberately: **when parity and correctness conflict, parity wins**, because
+the deployed model was *trained* on features computed this way. A Kotlin extractor that
+computed the "right" coverage would feed the ONNX model vectors from a different
+distribution than it was fitted on — a silently wrong prediction, which is worse than a
+consistently slightly-off one. Diverging "to fix a bug" is exactly the failure
+`SPEC_VERSION` exists to prevent.
+
+It follows that **the Python side is the one that would have to change first.** The fix is
+not an Android edit: it is a coverage redefinition in `screenlock_features.py` (e.g. count
+only dates with a non-zero clipped duration, or exclude an interval clipped to exactly
+`w1`), then the spec, then a SPEC_VERSION bump, then a retrain, then the Kotlin port — in
+that order, never one alone. Note the Phase-2/4 results are a validated null, so the
+practical impact on any published number is nil; this is a correctness debt, not a
+result-changing one. **TODO(team): decide.**
 
 ---
 
