@@ -1,7 +1,7 @@
 # Feature Specification — SINGLE SOURCE OF TRUTH
 
 ```
-SPEC_VERSION: v0.5.0
+SPEC_VERSION: v0.6.0
 ```
 
 This file is **authoritative**. Both the Android extractor (`android/…/features`) and the
@@ -60,8 +60,8 @@ backbone / auxiliary / out-of-scope.
 ## Usage
 | feature_name | definition | aggregation_window | unit | dtype | missing-data rule | android_source | python_source | studentlife_coverage | retrospective_availability |
 |---|---|---|---|---|---|---|---|---|---|
-| screen_on_time | TODO | TODO | TODO | TODO | TODO | UsageStatsManager (TODO) | TODO | 49/49 (phonelock episodes) | **YES — queryEvents SCREEN on/off, ~10d retention (BACKBONE)** |
-| unlock_count | TODO | TODO | TODO | TODO | TODO | TODO | TODO | 49/49 (phonelock episodes) | **YES — queryEvents KEYGUARD_HIDDEN, ~10d (BACKBONE)** |
+| screen_on_time | TODO | TODO | TODO | TODO | TODO | `sensing/UsageEventsSource` → locked intervals (§8) → `features/ScreenLockFeatures` | TODO | 49/49 (phonelock episodes) | **YES — queryEvents SCREEN on/off, ~10d retention (BACKBONE)** |
+| unlock_count | TODO | TODO | TODO | TODO | TODO | `sensing/UsageEventsSource` KEYGUARD_HIDDEN (§8) | TODO | 49/49 (phonelock episodes) | **YES — queryEvents KEYGUARD_HIDDEN, ~10d (BACKBONE)** |
 | app_switch_count | TODO | TODO | TODO | TODO | TODO | TODO | TODO | 49/49 (app_usage — RUNNING_TASKS poll, not a usage timeline; see constraints) | YES — UsageStats INTERVAL_DAILY, ~10d (WEEKLY ~3.5wk, MONTHLY ~5mo but coarse) |
 
 ## Mobility
@@ -228,6 +228,130 @@ all |ρ| ≤ 0.14, so this is a **true null / negative-transfer** result, not a 
 screen/lock behaviour alone does not carry cross-subject momentary-stress signal in
 StudentLife. Motivates personalization / self-baseline and richer features in later phases.
 Full numbers: `ml/src/training/run_baseline.py` output + `data/processed/baseline_metrics_v0.4.0.json`.
+
+### 7. Temporal sequence representation & ONNX contract (Phase 4)
+
+The Phase-4 temporal models consume the SAME 1157 samples/labels, but as a **7-day daily
+sequence** instead of one flat aggregate. Two parts (`ml/src/features/sequence_dataset.py`):
+
+- **Dynamic — `(7, 8)` per-day sequence** (oldest→newest day of the 7-day window):
+  `[unlock_count, session_count, session_duration_median, screen_on_fraction,
+  nighttime_use_fraction_fixed, call_count, sms_count, has_data]`. Missing day → 0 + the
+  `has_data` mask channel.
+- **Static — `(9,)`** window-level quantities undefined for a single day (sleep crosses
+  midnight; regularity/circadian need multiple days):
+  `[sleep_duration_median, sleep_onset_hours, sleep_wake_hours, sleep_onset_regularity,
+  sleep_midpoint_regularity, circadian_regularity, days_with_data, call_present, sms_present]`.
+  So the DL model sees ≥ what XGBoost saw; the sequence isolates the daily usage rhythm.
+
+Standardization is fit on the TRAIN fold only. **ONNX input contract (Phase-5 Kotlin MUST
+construct exactly this; embedded in the model's `metadata_props`):**
+
+```
+input  seq    : float32 (B, 7, 8)   # dynamic, standardized
+input  static : float32 (B, 9)      # static, standardized
+output stress : float32 (B,)        # 0–100, 100 = most stressed
+metadata: spec_version = <SPEC_VERSION>, input_contract = "<the line above>"
+```
+
+Inference is **batch = 1** (`(1,7,8)` + `(1,9)`) — the app scores one user-window at a time;
+the exporter's variable-batch LSTM warning does not apply. PyTorch↔ONNX Runtime parity is
+asserted to **≤ 1e-5** at export (`ml/src/models/onnx_export.py`); the bump to this
+SPEC_VERSION was gated on that parity passing.
+
+### 8. Android source mapping — `queryEvents` → LOCKED intervals (Phase 5)
+
+§2 requires that **any** mapping from a StudentLife stream to a `UsageStatsManager`-style
+feature be documented and justified here *before* it may back a feature. This section is
+that justification for the backbone. It is **binding on the Kotlin extractor**.
+
+**The mapping.** StudentLife's `phonelock` stream is a list of `(start, end)` LOCKED
+intervals. On-device, the equivalent is reconstructed from
+`UsageStatsManager.queryEvents`:
+
+```
+locked interval = [ KEYGUARD_SHOWN , KEYGUARD_HIDDEN )     (epoch seconds, half-open)
+unlock          =   KEYGUARD_HIDDEN  (= the END of a locked interval, as in the Python ETL)
+use-session     =   the gap between consecutive locked intervals, kept iff <= MAX_SESSION_MINUTES
+```
+
+Downstream everything is **identical to the Python path**: the same interval list feeds the
+same `screenlock_window_features` logic, so no feature definition differs by platform — only
+the source of the intervals does.
+
+**Why keyguard events, not the more abundant screen events.** The probe
+(`docs/device-probe-results.md`) returned **`SCREEN_INTERACTIVE` 2007 / `SCREEN_NON_INTERACTIVE`
+2002** vs **`KEYGUARD_HIDDEN` 1138 / `KEYGUARD_SHOWN` 1137** over the same ~10 days — the
+screen turns on roughly **1.8×** more often than the device is actually unlocked. The excess
+is notification glances, ambient/always-on display, and incoming-call wakes, none of which
+are *device use* by a person. Two consequences decided the choice:
+
+1. **Screen events fragment sleep.** A single notification at 03:00 splits one 8-hour
+   screen-off interval into two ~4-hour ones. `MIN_SLEEP_MINUTES` (90) would keep both, and
+   the per-night "longest qualifying interval" rule would then report ~4 h instead of ~8 h —
+   a direct, silent corruption of `sleep_duration_median`, the backbone feature.
+2. **Keyguard is the closer analogue to `phonelock`.** StudentLife's stream records the
+   device being *locked* (unusable without the user authenticating), which is semantically
+   `KEYGUARD_SHOWN → KEYGUARD_HIDDEN`, not "display powered off". Using screen events would
+   make the Android and StudentLife "locked interval" mean different things, breaking the
+   cross-source equivalence §2 demands.
+
+Trade-off accepted: users with **no lock screen configured** emit no keyguard events and
+will produce an empty/low-coverage window. This is handled — not hidden — by
+`COVERAGE_MIN_DAYS` (3), which gates such a window out rather than scoring it. Raw events of
+**both** kinds are still persisted (below) so this decision can be revisited without
+re-querying.
+
+**Open intervals are DROPPED, never clamped.** An interval whose `KEYGUARD_SHOWN` precedes
+the query start, or whose `KEYGUARD_HIDDEN` falls after the query end, is discarded — it is
+**not** clamped to the window boundary. Rationale: clamping fabricates a long locked
+interval out of a *missing* event. A window that begins mid-lock would synthesize a
+multi-hour interval whose midpoint can land in `SLEEP_MIDPOINT_BAND`, inventing a "night of
+sleep" that never happened and corrupting `sleep_duration_median` / `n_sleep_nights` /
+`sleep_onset_regularity` — the backbone. Losing at most one real interval at each window
+edge is strictly preferable to fabricating one. (Python's ETL has the same effect: it reads
+already-paired `(start, end)` rows, so an unpaired lock simply does not exist there.)
+
+**Other derivation rules** (deterministic, in `sensing/LockedIntervalDerivation`):
+- consecutive duplicate states are collapsed — `SHOWN, SHOWN, HIDDEN` yields one interval
+  opened by the **first** `SHOWN` (the later one is a redundant re-post, not a new lock);
+- `end <= start` intervals are dropped, mirroring the Python ETL's `end_utc > start_utc`;
+- `DEVICE_SHUTDOWN` closes any open interval as *unknown* (dropped) and `DEVICE_STARTUP`
+  begins a fresh state — a powered-off phone is a **data gap**, not a lock. Counting it as
+  sleep would be the same fabrication as clamping;
+- intervals are sorted by start before use (Python sorts too; `queryEvents` order is not
+  contractual).
+
+**Verified API levels** (from the installed SDK's `platforms/*/data/api-versions.xml`, not
+from memory): `KEYGUARD_SHOWN`, `KEYGUARD_HIDDEN`, `SCREEN_INTERACTIVE`,
+`SCREEN_NON_INTERACTIVE` = **API 28**; `DEVICE_SHUTDOWN`, `DEVICE_STARTUP` = **API 29**;
+`UsageStatsManager` itself = API 21. The shutdown/startup gap rule therefore sets
+**`minSdk = 29`**. `MOVE_TO_FOREGROUND` is deprecated at API 29 and is not used.
+
+**Permission.** `queryEvents`/`queryUsageStats` need `android.permission.PACKAGE_USAGE_STATS`,
+a *special* (not runtime) permission granted via `Settings.ACTION_USAGE_ACCESS_SETTINGS`;
+grant state is checked with `AppOpsManager.OPSTR_GET_USAGE_STATS`. CallLog/SMS use the
+runtime `READ_CALL_LOG` / `READ_SMS`. — NEEDS-VERIFICATION against current official docs
+before the participant build.
+
+**Timezone.** Python fixes `TIMEZONE = America/New_York` because StudentLife is Dartmouth
+2013. That is a property of *the bootstrap corpus*, not of the feature definitions, so the
+Kotlin extractor takes the zone as a **parameter**: the app passes the device zone
+(`ZoneId.systemDefault()`), and the parity test / any StudentLife replay passes
+`SpecConstants.PARITY_TIMEZONE` (= the Python `TIMEZONE`) **explicitly**. Identical input +
+identical zone ⇒ identical vectors, which is what the parity test asserts. A parity test that
+passed only because both sides happened to read the same ambient zone would be worthless, so
+it must never rely on the default.
+
+**Not backbone.** `queryUsageStats(INTERVAL_DAILY)` per-app buckets are cached as
+low-resolution context only. Per §2 the StudentLife `app_usage` RUNNING_TASKS poll is *not*
+equivalent to them, and that mapping is **not** justified here — so no feature may be built
+on them under this SPEC_VERSION.
+
+**Caching.** Computed vectors are cached in Room keyed by `(windowEnd, SPEC_VERSION)`, so a
+version bump invalidates rather than silently reuses vectors computed under older rules. Raw
+derived events are persisted at first run because `queryEvents` retention (~10 d) means
+anything not captured then is unrecoverable.
 
 ---
 
