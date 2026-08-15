@@ -47,7 +47,7 @@ vs. the XGBoost baseline, ONNX export + runtime parity.
 - **Deferred to GLOBEM:** cross-dataset evaluation (StudentLife has no signal to transfer).
   The temporal-DL + attribution + ONNX infra re-runs unchanged there.
 
-## Phase 5 — Android app
+## Phase 5 — Android app &nbsp;`[COMPLETE]`
 On-device historical queries, feature extraction matching the Python pipeline, Room caching,
 Konsist architecture tests.
 - **Note:** **Health Connect is OUT OF SCOPE** — the device probe returned **0 records**
@@ -56,8 +56,28 @@ Konsist architecture tests.
   test MUST assert the Kotlin `SPEC_VERSION` equals the one in `docs/feature-spec.md` and the
   ONNX metadata, failing the build on drift. Silent code/doc/model drift is the exact failure
   the version field exists to catch (Phase 6 parity depends on it).
-- **Exit:** app reconstructs the 7-day feature window on-device from historical queries;
-  Konsist tests green.
+- **Exit met:** single Gradle module in `android/` (`com.stressdetect`, packages
+  `sensing` / `features` / `data` / `inference` / `ui`) reconstructs the 7-day window
+  on-device from `queryEvents` + CallLog/SMS history, caches it in Room, and passes
+  **39 unit tests** including Konsist and the SPEC_VERSION guard. ✅
+- **Backbone mapping recorded** in `feature-spec.md` §8: locked interval =
+  `KEYGUARD_SHOWN → KEYGUARD_HIDDEN` (keyguard, not screen — the probe saw ~1.8× more screen
+  wakes than unlocks, and a notification at 03:00 would halve a reported sleep); intervals
+  open at a window edge are **dropped, never clamped**; `minSdk = 29` because
+  `DEVICE_SHUTDOWN/STARTUP` (data gap ≠ lock) are API 29, verified against the SDK's
+  `api-versions.xml`.
+- **Parity is asserted against the real Python extractor** — the expected values in
+  `ScreenLockFeaturesParityTest` were produced by running `ml/src/features` over the same
+  intervals, not hand-computed. The timezone is always passed explicitly, so the test cannot
+  pass by both sides reading the same ambient default.
+- **Two parity hazards found and recorded** (`feature-spec.md` §8): pandas `Timedelta` is an
+  ABSOLUTE duration, so window arithmetic must be in seconds — `minusDays` would have broken
+  parity across DST twice a year, invisibly; and `days_with_data` can reach 8 in a 7-day
+  window, deflating every per-day rate (mirrored, not fixed — **TODO(team)**, and the fix
+  starts on the Python side).
+- **Deferred to Phase 6:** the `fixtures/synthetic_trace.json` contract test read by both
+  suites (the fixture is still `TODO`), and ONNX inference (`inference/` is an interface
+  carrying the §7 input contract).
 
 ## Phase 6 — Parity + ONNX
 Kotlin feature extraction == Python on the shared fixture; model export.
