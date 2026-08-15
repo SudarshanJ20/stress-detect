@@ -146,12 +146,26 @@ def main():
 
     print("\n" + LINE); print("ONNX export + runtime parity"); print(LINE)
     onnx_path = PROCESSED_DIR / f"temporal_cnnlstm_{SPEC_VERSION}.onnx"
-    res = export_and_verify(final, d_dyn, d_static, str(onnx_path), SPEC_VERSION)
+    res = export_and_verify(
+        final, d_dyn, d_static, str(onnx_path), SPEC_VERSION,
+        scaler=sc, dyn_features=data["dyn_features"], static_features=data["static_features"],
+    )
     print(f"  exported: {onnx_path}")
     print(f"  input contract: {res['contract']}")
     print(f"  spec_version in metadata: {res['spec_version']}")
     print(f"  PyTorch vs ONNX Runtime max|diff| = {res['max_abs_diff']:.2e}  → "
           f"{'MATCH (<=1e-5)' if res['match'] else 'MISMATCH'}")
+
+    # ── on-device reference: the SAME fixture inputs the Kotlin app will score ─────────
+    # Written so the Android instrumented test can assert its ONNX Runtime output equals
+    # PyTorch. Without a shared reference, "the app runs the model" proves only that it
+    # produced a number, not the RIGHT number.
+    from models.model_reference import write_model_reference
+    ref = write_model_reference(final, sc, str(onnx_path), SPEC_VERSION,
+                                data["dyn_features"], data["static_features"])
+    print(f"  wrote {ref['path']}  ({ref['n_cases']} fixture cases)")
+    print(f"  PyTorch vs ORT on fixture inputs  = {ref['max_abs_diff']:.2e}  → "
+          f"{'MATCH (<=1e-5)' if ref['match'] else 'MISMATCH'}")
     print("\n" + LINE); print("done"); print(LINE)
 
 
