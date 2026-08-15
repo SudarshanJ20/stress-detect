@@ -10,8 +10,8 @@ import numpy as np
 import pandas as pd
 
 from features.spec_constants import (
-    CIRCADIAN_BINS, MAX_SESSION_MINUTES, MIN_SLEEP_MINUTES, NIGHT_FIXED_BAND,
-    SLEEP_MIDPOINT_BAND, TIMEZONE,
+    BAND_EDGE_EPS, CIRCADIAN_BINS, MAX_SESSION_MINUTES, MIN_SLEEP_MINUTES,
+    NIGHT_FIXED_BAND, SLEEP_MIDPOINT_BAND, TIMEZONE,
 )
 
 _H = 3600.0
@@ -23,14 +23,31 @@ def _circ(hours: np.ndarray):
         return np.nan, np.nan
     ang = 2 * np.pi * (hours % 24) / 24.0
     C, S = np.cos(ang).mean(), np.sin(ang).mean()
-    R = np.hypot(C, S)
+    # R <= 1 by construction; anything above is float error. Clamped so sqrt(-2 ln R) can
+    # never see a negative argument and return a spurious NaN. Inert here (R > 1.0 occurs
+    # in 0 of 1161 StudentLife samples) but kept so BOTH extractors are robust the same
+    # way — the JVM and numpy differ by ~1 ULP in cos/sin/atan2, and the Kotlin port hit
+    # exactly this. See docs/feature-spec.md §8.
+    R = min(np.hypot(C, S), 1.0)
     mean_h = (np.arctan2(S, C) % (2 * np.pi)) * 24 / (2 * np.pi)
     sd_h = np.sqrt(-2.0 * np.log(R)) * 24 / (2 * np.pi) if R > 0 else np.nan
     return mean_h, sd_h
 
 
 def _in_band(hour: float, band: tuple[float, float]) -> bool:
+    """Half-open [lo, hi) in clock hours, wrapping past midnight.
+
+    Edges are SNAPPED (BAND_EDGE_EPS): exactly on `lo` is INSIDE, exactly on `hi` is
+    OUTSIDE. Without this, a ~1 ULP difference between the JVM and numpy in the circular
+    mean that produces `lo`/`hi` flips the result for a subject whose unlock time equals
+    their own mean wake time — a boolean divergence no tolerance can absorb. The Kotlin
+    `ClockBand.contains` implements the identical rule from the same constant.
+    """
     lo, hi = band
+    if abs(hour - lo) < BAND_EDGE_EPS:
+        return True
+    if abs(hour - hi) < BAND_EDGE_EPS:
+        return False
     return (lo <= hour < hi) if lo < hi else (hour >= lo or hour < hi)  # wrap past midnight
 
 

@@ -14,7 +14,7 @@ package com.stressdetect.features
 object SpecConstants {
 
     /** Bump together with `docs/feature-spec.md` AND `ml/src/features/spec_constants.py`. */
-    const val SPEC_VERSION: String = "v0.6.0"
+    const val SPEC_VERSION: String = "v0.7.0"
 
     /**
      * The zone the PYTHON extractor hardcodes (`spec_constants.TIMEZONE`), because
@@ -57,6 +57,28 @@ object SpecConstants {
     /** Fixed clock band 00:00–06:00 — the ABLATION feature, not the primary one. */
     val NIGHT_FIXED_BAND: ClockBand = ClockBand(0.0, 6.0)
 
+    // ── Clock-band edge resolution (cross-language determinism) ──────────────────────
+    /**
+     * A clock hour within this many hours of a band bound is resolved by CONVENTION
+     * rather than by the raw comparison: on the INCLUSIVE low edge → INSIDE, on the
+     * EXCLUSIVE high edge → OUTSIDE.
+     *
+     * Why this exists: the person-relative night band's bounds are CIRCULAR MEANS — they
+     * come out of `cos`/`sin`/`atan2`, and the JVM and numpy's libm differ by ~1 ULP
+     * there. When a subject's unlock time coincides with their own mean wake time (common,
+     * not exotic), that 1 ULP flipped the in/out decision and changed
+     * `nighttime_unlock_per_day_personal` (0.0 vs 0.75). A boolean flip cannot be absorbed
+     * by a numerical tolerance, so the COMPARISON itself must be deterministic. Found by
+     * the Phase-6 parity fixture; see `docs/feature-spec.md` §9.
+     *
+     * 1e-9 h = 3.6 µs — far below the minute resolution of the underlying clock features
+     * (`hour + minute/60`, seconds dropped) and far above the ~1e-16 noise it absorbs.
+     *
+     * Mirrors `ml/src/features/spec_constants.py::BAND_EDGE_EPS`. Changing it on one side
+     * only is precisely the divergence SPEC_VERSION exists to prevent.
+     */
+    const val BAND_EDGE_EPS: Double = 1e-9
+
     // ── Circadian regularity ─────────────────────────────────────────────────────────
     /** Hourly use-profile bins per day; regularity = mean pairwise correlation. */
     const val CIRCADIAN_BINS: Int = 24
@@ -70,7 +92,16 @@ object SpecConstants {
  * (e.g. 20.0 → 12.0). Mirrors `_in_band` in `screenlock_features.py`.
  */
 data class ClockBand(val startHour: Double, val endHour: Double) {
-    fun contains(hour: Double): Boolean =
-        if (startHour < endHour) hour >= startHour && hour < endHour
+
+    /**
+     * Half-open `[startHour, endHour)`, wrapping past midnight, with SNAPPED edges:
+     * exactly on the low edge is INSIDE, exactly on the high edge is OUTSIDE
+     * ([SpecConstants.BAND_EDGE_EPS]). Identical rule to Python's `_in_band`.
+     */
+    fun contains(hour: Double): Boolean {
+        if (kotlin.math.abs(hour - startHour) < SpecConstants.BAND_EDGE_EPS) return true
+        if (kotlin.math.abs(hour - endHour) < SpecConstants.BAND_EDGE_EPS) return false
+        return if (startHour < endHour) hour >= startHour && hour < endHour
         else hour >= startHour || hour < endHour
+    }
 }

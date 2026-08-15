@@ -7,7 +7,7 @@ Code must not introduce a magic number that is not also in the spec. The Android
 from __future__ import annotations
 
 # Bump together with docs/feature-spec.md. Exposed so the parity test / ONNX metadata match.
-SPEC_VERSION = "v0.6.0"
+SPEC_VERSION = "v0.7.0"
 
 # StudentLife was collected at Dartmouth (Hanover, NH), spring 2013 = US Eastern.
 # Every clock/date/night computation MUST localize epoch → this zone. Asserted at runtime;
@@ -59,6 +59,22 @@ NIGHT_FIXED_BAND = (0, 6)     # 00:00 → 06:00 local
 # Person-relative night = each subject's own [median sleep onset, median sleep wake] over
 # the window (primary). No extra constant: derived from that subject's detected sleep.
 
+# ── Clock-band edge resolution (cross-language determinism) ──────────────────────────
+# A clock hour within this many hours of a band bound is resolved by CONVENTION rather
+# than by the raw `<`/`<=` comparison:  on the INCLUSIVE low edge -> INSIDE,
+# on the EXCLUSIVE high edge -> OUTSIDE.
+#
+# Why this exists: the person-relative night band's bounds are CIRCULAR MEANS, i.e. they
+# come out of cos/sin/atan2 — and the JVM and numpy's libm differ by ~1 ULP there. When a
+# subject's unlock time coincides with their own mean wake time (common, not exotic), that
+# 1 ULP flipped the in/out decision and changed nighttime_unlock_per_day_personal. A
+# boolean flip cannot be absorbed by a numerical tolerance, so the COMPARISON itself has to
+# be made deterministic. Found by the Phase-6 parity fixture. See docs/feature-spec.md §9.
+#
+# 1e-9 h = 3.6 µs: far below the minute resolution of the underlying clock features (which
+# are hour + minute/60, seconds dropped), and far above the ~1e-16 ULP noise it absorbs.
+BAND_EDGE_EPS = 1e-9
+
 # ── Circadian regularity ─────────────────────────────────────────────────────────────
 CIRCADIAN_BINS = 24          # hourly use-profile bins per day; regularity = mean pairwise corr
 
@@ -67,4 +83,5 @@ __all__ = [
     "BINARY_STRESSED_RAW", "BINARY_NOT_RAW", "BINARY_DROP_RAW",
     "WINDOW_DAYS", "COVERAGE_MIN_DAYS", "MIN_SLEEP_MINUTES", "SLEEP_MIDPOINT_BAND",
     "SLEEP_SANITY_MIN_H", "SLEEP_SANITY_MAX_H", "NIGHT_FIXED_BAND", "CIRCADIAN_BINS",
+    "BAND_EDGE_EPS", "MIN_RESPONSES_PER_WEEK",
 ]

@@ -255,7 +255,14 @@ object ScreenLockFeatures {
         }
         val c = cosSum / hours.size
         val s = sinSum / hours.size
-        val r = hypot(c, s)
+        // The mean-resultant length is <= 1 by construction; a value above 1 is pure
+        // floating-point error. Without this clamp, `sqrt(-2 ln R)` sees a negative
+        // argument and returns NaN where Python returns ~0 — a hard parity break that the
+        // 1e-6 tolerance cannot absorb, because NaN is not close to anything. The JVM and
+        // numpy's libm differ by ~1 ULP in cos/sin/atan2, which is enough to cross 1.0.
+        // Verified inert on the real corpus: R > 1.0 occurs in 0 of 1161 StudentLife
+        // samples (R == 1.0 exactly in 21), so this changes no trained-on value.
+        val r = minOf(hypot(c, s), 1.0)
         var mean = atan2(s, c) % (2 * PI)
         if (mean < 0) mean += 2 * PI                       // Python's `%` is always non-negative
         val meanHours = mean * 24 / (2 * PI)
