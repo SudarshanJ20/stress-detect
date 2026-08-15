@@ -7,7 +7,7 @@ Code must not introduce a magic number that is not also in the spec. The Android
 from __future__ import annotations
 
 # Bump together with docs/feature-spec.md. Exposed so the parity test / ONNX metadata match.
-SPEC_VERSION = "v0.4.0"
+SPEC_VERSION = "v0.6.0"
 
 # StudentLife was collected at Dartmouth (Hanover, NH), spring 2013 = US Eastern.
 # Every clock/date/night computation MUST localize epoch → this zone. Asserted at runtime;
