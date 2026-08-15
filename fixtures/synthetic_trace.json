@@ -1,15 +1,1256 @@
 {
-  "spec_version": "v0.1.0",
-  "description": "Shared synthetic parity trace. No real participant data. Fill inputs and expected_features together when docs/feature-spec.md is locked; bump spec_version in lockstep. TODO placeholders must not be replaced with invented numbers.",
-  "inputs": {
-    "typing": "TODO",
-    "touch": "TODO",
-    "usage": "TODO",
-    "mobility": "TODO",
-    "sleep_proxy": "TODO",
-    "motion": "TODO",
-    "social": "TODO",
-    "ambient": "TODO"
-  },
-  "expected_features": "TODO"
+  "spec_version": "v0.7.0",
+  "description": "Shared synthetic parity trace \u2014 the contract test for feature parity between the Kotlin extractor (android/app/src/main/java/com/stressdetect/features) and the Python extractor (ml/src/features). No real participant data. Each case targets one named rule in docs/feature-spec.md; see fixtures/README.md. Regenerate with `python ml/tools/build_parity_fixture.py`, and bump spec_version in lockstep with docs/feature-spec.md.",
+  "generator": "ml/tools/build_parity_fixture.py",
+  "parity_timezone": "America/New_York",
+  "window_days": 7,
+  "coverage_min_days": 3,
+  "tolerance": 1e-06,
+  "feature_names": [
+    "days_with_data",
+    "n_sleep_nights",
+    "sleep_duration_median",
+    "sleep_onset_hours",
+    "sleep_wake_hours",
+    "sleep_onset_regularity",
+    "sleep_midpoint_regularity",
+    "unlock_count_per_day_mean",
+    "unlock_count_sd",
+    "session_count_per_day_mean",
+    "session_duration_median",
+    "session_duration_iqr",
+    "screen_on_fraction",
+    "nighttime_use_fraction_personal",
+    "nighttime_unlock_per_day_personal",
+    "nighttime_use_fraction_fixed",
+    "nighttime_unlock_per_day_fixed",
+    "circadian_regularity",
+    "call_count_per_day",
+    "call_present",
+    "sms_count_per_day",
+    "sms_present"
+  ],
+  "cases": [
+    {
+      "name": "midnight_wrap_sleep",
+      "exercises": "Sleep intervals crossing midnight: onset ~23:30 (day N), wake ~07:15 (day N+1). Forces CIRCULAR statistics \u2014 an arithmetic mean of [23.5, 7.25] would give ~15:00 (mid-afternoon) instead of ~03:00, and night_key must group the interval with the day it STARTED via the midpoint-minus-12h rule.",
+      "label_date": "2013-04-15",
+      "expected_window": {
+        "start_utc": 1365393600,
+        "end_utc": 1365998400
+      },
+      "expected_window_local": {
+        "start": "2013-04-08 00:00:00-04:00",
+        "end": "2013-04-15 00:00:00-04:00"
+      },
+      "locked_intervals": [
+        [
+          1365478200,
+          1365506100
+        ],
+        [
+          1365523200,
+          1365526800
+        ],
+        [
+          1365564600,
+          1365592500
+        ],
+        [
+          1365609600,
+          1365618600
+        ],
+        [
+          1365651000,
+          1365678900
+        ],
+        [
+          1365685200,
+          1365687900
+        ],
+        [
+          1365737400,
+          1365765300
+        ],
+        [
+          1365823800,
+          1365851700
+        ],
+        [
+          1365910200,
+          1365938100
+        ]
+      ],
+      "locked_intervals_local": [
+        [
+          "2013-04-08 23:30:00-04:00",
+          "2013-04-09 07:15:00-04:00"
+        ],
+        [
+          "2013-04-09 12:00:00-04:00",
+          "2013-04-09 13:00:00-04:00"
+        ],
+        [
+          "2013-04-09 23:30:00-04:00",
+          "2013-04-10 07:15:00-04:00"
+        ],
+        [
+          "2013-04-10 12:00:00-04:00",
+          "2013-04-10 14:30:00-04:00"
+        ],
+        [
+          "2013-04-10 23:30:00-04:00",
+          "2013-04-11 07:15:00-04:00"
+        ],
+        [
+          "2013-04-11 09:00:00-04:00",
+          "2013-04-11 09:45:00-04:00"
+        ],
+        [
+          "2013-04-11 23:30:00-04:00",
+          "2013-04-12 07:15:00-04:00"
+        ],
+        [
+          "2013-04-12 23:30:00-04:00",
+          "2013-04-13 07:15:00-04:00"
+        ],
+        [
+          "2013-04-13 23:30:00-04:00",
+          "2013-04-14 07:15:00-04:00"
+        ]
+      ],
+      "calls": [
+        1365602400,
+        1365805200
+      ],
+      "sms": [
+        1365509100,
+        1365903600
+      ],
+      "has_calls": true,
+      "has_sms": true,
+      "expected_features": {
+        "days_with_data": 7.0,
+        "n_sleep_nights": 6.0,
+        "sleep_duration_median": 7.75,
+        "sleep_onset_hours": 23.5,
+        "sleep_wake_hours": 7.25,
+        "sleep_onset_regularity": -0.0,
+        "sleep_midpoint_regularity": -0.0,
+        "unlock_count_per_day_mean": 1.2857142857142858,
+        "unlock_count_sd": 0.6998542122237652,
+        "session_count_per_day_mean": 0.14285714285714285,
+        "session_duration_median": 105.0,
+        "session_duration_iqr": 0.0,
+        "screen_on_fraction": 0.010416666666666668,
+        "nighttime_use_fraction_personal": 0.0,
+        "nighttime_unlock_per_day_personal": 0.0,
+        "nighttime_use_fraction_fixed": 0.0,
+        "nighttime_unlock_per_day_fixed": 0.0,
+        "circadian_regularity": null,
+        "call_count_per_day": 0.2857142857142857,
+        "call_present": 1.0,
+        "sms_count_per_day": 0.2857142857142857,
+        "sms_present": 1.0
+      },
+      "expected_days_with_data": 7.0,
+      "expected_meets_coverage": true
+    },
+    {
+      "name": "sleep_band_edge_inside",
+      "exercises": "SLEEP_MIDPOINT_BAND is [20:00, 12:00) and wraps midnight. Midpoints land exactly on 20:00 (inclusive lower bound) and on 11:59 (just inside the exclusive upper bound), so BOTH must qualify as sleep.",
+      "label_date": "2013-04-15",
+      "expected_window": {
+        "start_utc": 1365393600,
+        "end_utc": 1365998400
+      },
+      "expected_window_local": {
+        "start": "2013-04-08 00:00:00-04:00",
+        "end": "2013-04-15 00:00:00-04:00"
+      },
+      "locked_intervals": [
+        [
+          1365546600,
+          1365557400
+        ],
+        [
+          1365690540,
+          1365701340
+        ],
+        [
+          1365789600,
+          1365792300
+        ],
+        [
+          1365854400,
+          1365856200
+        ]
+      ],
+      "locked_intervals_local": [
+        [
+          "2013-04-09 18:30:00-04:00",
+          "2013-04-09 21:30:00-04:00"
+        ],
+        [
+          "2013-04-11 10:29:00-04:00",
+          "2013-04-11 13:29:00-04:00"
+        ],
+        [
+          "2013-04-12 14:00:00-04:00",
+          "2013-04-12 14:45:00-04:00"
+        ],
+        [
+          "2013-04-13 08:00:00-04:00",
+          "2013-04-13 08:30:00-04:00"
+        ]
+      ],
+      "calls": [],
+      "sms": [],
+      "has_calls": true,
+      "has_sms": true,
+      "expected_features": {
+        "days_with_data": 4.0,
+        "n_sleep_nights": 2.0,
+        "sleep_duration_median": 3.0,
+        "sleep_onset_hours": 14.491666666666664,
+        "sleep_wake_hours": 17.491666666666664,
+        "sleep_onset_regularity": 4.509648121236731,
+        "sleep_midpoint_regularity": 4.509648121236731,
+        "unlock_count_per_day_mean": 1.0,
+        "unlock_count_sd": 0.0,
+        "session_count_per_day_mean": 0.0,
+        "session_duration_median": null,
+        "session_duration_iqr": null,
+        "screen_on_fraction": 0.0,
+        "nighttime_use_fraction_personal": null,
+        "nighttime_unlock_per_day_personal": 0.25,
+        "nighttime_use_fraction_fixed": null,
+        "nighttime_unlock_per_day_fixed": 0.0,
+        "circadian_regularity": null,
+        "call_count_per_day": 0.0,
+        "call_present": 1.0,
+        "sms_count_per_day": 0.0,
+        "sms_present": 1.0
+      },
+      "expected_days_with_data": 4.0,
+      "expected_meets_coverage": true
+    },
+    {
+      "name": "sleep_band_edge_outside",
+      "exercises": "Mirror of the previous case one minute the other way: midpoints 19:59 (just below the lower bound) and exactly 12:00 (the EXCLUSIVE upper bound). Neither may count as sleep, so all six sleep features are NaN \u2014 which also exercises the fallback of the person-relative night band to NIGHT_FIXED_BAND when no sleep was detected.",
+      "label_date": "2013-04-15",
+      "expected_window": {
+        "start_utc": 1365393600,
+        "end_utc": 1365998400
+      },
+      "expected_window_local": {
+        "start": "2013-04-08 00:00:00-04:00",
+        "end": "2013-04-15 00:00:00-04:00"
+      },
+      "locked_intervals": [
+        [
+          1365546540,
+          1365557340
+        ],
+        [
+          1365690600,
+          1365701400
+        ],
+        [
+          1365789600,
+          1365792300
+        ],
+        [
+          1365854400,
+          1365856200
+        ]
+      ],
+      "locked_intervals_local": [
+        [
+          "2013-04-09 18:29:00-04:00",
+          "2013-04-09 21:29:00-04:00"
+        ],
+        [
+          "2013-04-11 10:30:00-04:00",
+          "2013-04-11 13:30:00-04:00"
+        ],
+        [
+          "2013-04-12 14:00:00-04:00",
+          "2013-04-12 14:45:00-04:00"
+        ],
+        [
+          "2013-04-13 08:00:00-04:00",
+          "2013-04-13 08:30:00-04:00"
+        ]
+      ],
+      "calls": [],
+      "sms": [],
+      "has_calls": true,
+      "has_sms": true,
+      "expected_features": {
+        "days_with_data": 4.0,
+        "n_sleep_nights": null,
+        "sleep_duration_median": null,
+        "sleep_onset_hours": null,
+        "sleep_wake_hours": null,
+        "sleep_onset_regularity": null,
+        "sleep_midpoint_regularity": null,
+        "unlock_count_per_day_mean": 1.0,
+        "unlock_count_sd": 0.0,
+        "session_count_per_day_mean": 0.0,
+        "session_duration_median": null,
+        "session_duration_iqr": null,
+        "screen_on_fraction": 0.0,
+        "nighttime_use_fraction_personal": null,
+        "nighttime_unlock_per_day_personal": 0.0,
+        "nighttime_use_fraction_fixed": null,
+        "nighttime_unlock_per_day_fixed": 0.0,
+        "circadian_regularity": null,
+        "call_count_per_day": 0.0,
+        "call_present": 1.0,
+        "sms_count_per_day": 0.0,
+        "sms_present": 1.0
+      },
+      "expected_days_with_data": 4.0,
+      "expected_meets_coverage": true
+    },
+    {
+      "name": "min_sleep_duration_edge",
+      "exercises": "MIN_SLEEP_MINUTES = 90 is inclusive (`>=`). A 90-minute overnight lock must count as sleep; an 89-minute one on another night must not.",
+      "label_date": "2013-04-15",
+      "expected_window": {
+        "start_utc": 1365393600,
+        "end_utc": 1365998400
+      },
+      "expected_window_local": {
+        "start": "2013-04-08 00:00:00-04:00",
+        "end": "2013-04-15 00:00:00-04:00"
+      },
+      "locked_intervals": [
+        [
+          1365562800,
+          1365568200
+        ],
+        [
+          1365735600,
+          1365740940
+        ],
+        [
+          1365818400,
+          1365823800
+        ],
+        [
+          1365858000,
+          1365859200
+        ]
+      ],
+      "locked_intervals_local": [
+        [
+          "2013-04-09 23:00:00-04:00",
+          "2013-04-10 00:30:00-04:00"
+        ],
+        [
+          "2013-04-11 23:00:00-04:00",
+          "2013-04-12 00:29:00-04:00"
+        ],
+        [
+          "2013-04-12 22:00:00-04:00",
+          "2013-04-12 23:30:00-04:00"
+        ],
+        [
+          "2013-04-13 09:00:00-04:00",
+          "2013-04-13 09:20:00-04:00"
+        ]
+      ],
+      "calls": [],
+      "sms": [],
+      "has_calls": true,
+      "has_sms": true,
+      "expected_features": {
+        "days_with_data": 5.0,
+        "n_sleep_nights": 2.0,
+        "sleep_duration_median": 1.5,
+        "sleep_onset_hours": 22.499999999999996,
+        "sleep_wake_hours": 24.0,
+        "sleep_onset_regularity": 0.5007167126748832,
+        "sleep_midpoint_regularity": 0.5007167126748865,
+        "unlock_count_per_day_mean": 0.8,
+        "unlock_count_sd": 0.7483314773547883,
+        "session_count_per_day_mean": 0.0,
+        "session_duration_median": null,
+        "session_duration_iqr": null,
+        "screen_on_fraction": 0.0,
+        "nighttime_use_fraction_personal": null,
+        "nighttime_unlock_per_day_personal": 0.2,
+        "nighttime_use_fraction_fixed": null,
+        "nighttime_unlock_per_day_fixed": 0.4,
+        "circadian_regularity": null,
+        "call_count_per_day": 0.0,
+        "call_present": 1.0,
+        "sms_count_per_day": 0.0,
+        "sms_present": 1.0
+      },
+      "expected_days_with_data": 5.0,
+      "expected_meets_coverage": true
+    },
+    {
+      "name": "session_cutoff_edges",
+      "exercises": "A use-session is the gap between consecutive locks, kept iff `gap <= 180 min` (inclusive). Gaps here are 179, exactly 180, and 181 minutes: the first two are sessions, the third is a data gap / phone-off and must be DROPPED. Dropping it also removes its screen-on time, so session_count, the median/IQR and screen_on_fraction all move together.",
+      "label_date": "2013-04-15",
+      "expected_window": {
+        "start_utc": 1365393600,
+        "end_utc": 1365998400
+      },
+      "expected_window_local": {
+        "start": "2013-04-08 00:00:00-04:00",
+        "end": "2013-04-15 00:00:00-04:00"
+      },
+      "locked_intervals": [
+        [
+          1365508800,
+          1365512400
+        ],
+        [
+          1365523140,
+          1365526740
+        ],
+        [
+          1365595200,
+          1365598800
+        ],
+        [
+          1365609600,
+          1365613200
+        ],
+        [
+          1365681600,
+          1365685200
+        ],
+        [
+          1365696060,
+          1365699660
+        ],
+        [
+          1365768000,
+          1365771600
+        ],
+        [
+          1365775200,
+          1365778800
+        ]
+      ],
+      "locked_intervals_local": [
+        [
+          "2013-04-09 08:00:00-04:00",
+          "2013-04-09 09:00:00-04:00"
+        ],
+        [
+          "2013-04-09 11:59:00-04:00",
+          "2013-04-09 12:59:00-04:00"
+        ],
+        [
+          "2013-04-10 08:00:00-04:00",
+          "2013-04-10 09:00:00-04:00"
+        ],
+        [
+          "2013-04-10 12:00:00-04:00",
+          "2013-04-10 13:00:00-04:00"
+        ],
+        [
+          "2013-04-11 08:00:00-04:00",
+          "2013-04-11 09:00:00-04:00"
+        ],
+        [
+          "2013-04-11 12:01:00-04:00",
+          "2013-04-11 13:01:00-04:00"
+        ],
+        [
+          "2013-04-12 08:00:00-04:00",
+          "2013-04-12 09:00:00-04:00"
+        ],
+        [
+          "2013-04-12 10:00:00-04:00",
+          "2013-04-12 11:00:00-04:00"
+        ]
+      ],
+      "calls": [],
+      "sms": [],
+      "has_calls": true,
+      "has_sms": true,
+      "expected_features": {
+        "days_with_data": 4.0,
+        "n_sleep_nights": null,
+        "sleep_duration_median": null,
+        "sleep_onset_hours": null,
+        "sleep_wake_hours": null,
+        "sleep_onset_regularity": null,
+        "sleep_midpoint_regularity": null,
+        "unlock_count_per_day_mean": 2.0,
+        "unlock_count_sd": 0.0,
+        "session_count_per_day_mean": 0.75,
+        "session_duration_median": 179.0,
+        "session_duration_iqr": 60.0,
+        "screen_on_fraction": 0.07274305555555556,
+        "nighttime_use_fraction_personal": 0.0,
+        "nighttime_unlock_per_day_personal": 0.0,
+        "nighttime_use_fraction_fixed": 0.0,
+        "nighttime_unlock_per_day_fixed": 0.0,
+        "circadian_regularity": 0.7022737936930815,
+        "call_count_per_day": 0.0,
+        "call_present": 1.0,
+        "sms_count_per_day": 0.0,
+        "sms_present": 1.0
+      },
+      "expected_days_with_data": 4.0,
+      "expected_meets_coverage": true
+    },
+    {
+      "name": "below_coverage_gate",
+      "exercises": "Only 2 distinct local dates have lock data, below COVERAGE_MIN_DAYS = 3. Features are still COMPUTED (and cached) but the window must be reported as failing the gate, never scored. Verifies both sides agree on the gate, not just on the numbers.",
+      "label_date": "2013-04-15",
+      "expected_window": {
+        "start_utc": 1365393600,
+        "end_utc": 1365998400
+      },
+      "expected_window_local": {
+        "start": "2013-04-08 00:00:00-04:00",
+        "end": "2013-04-15 00:00:00-04:00"
+      },
+      "locked_intervals": [
+        [
+          1365822600,
+          1365851100
+        ],
+        [
+          1365868800,
+          1365871200
+        ]
+      ],
+      "locked_intervals_local": [
+        [
+          "2013-04-12 23:10:00-04:00",
+          "2013-04-13 07:05:00-04:00"
+        ],
+        [
+          "2013-04-13 12:00:00-04:00",
+          "2013-04-13 12:40:00-04:00"
+        ]
+      ],
+      "calls": [],
+      "sms": [],
+      "has_calls": false,
+      "has_sms": false,
+      "expected_features": {
+        "days_with_data": 2.0,
+        "n_sleep_nights": 1.0,
+        "sleep_duration_median": 7.916666666666667,
+        "sleep_onset_hours": 23.166666666666668,
+        "sleep_wake_hours": 7.083333333333333,
+        "sleep_onset_regularity": -0.0,
+        "sleep_midpoint_regularity": -0.0,
+        "unlock_count_per_day_mean": 1.0,
+        "unlock_count_sd": 1.0,
+        "session_count_per_day_mean": 0.0,
+        "session_duration_median": null,
+        "session_duration_iqr": null,
+        "screen_on_fraction": 0.0,
+        "nighttime_use_fraction_personal": null,
+        "nighttime_unlock_per_day_personal": 0.0,
+        "nighttime_use_fraction_fixed": null,
+        "nighttime_unlock_per_day_fixed": 0.0,
+        "circadian_regularity": null,
+        "call_count_per_day": 0.0,
+        "call_present": 0.0,
+        "sms_count_per_day": 0.0,
+        "sms_present": 0.0
+      },
+      "expected_days_with_data": 2.0,
+      "expected_meets_coverage": false
+    },
+    {
+      "name": "interval_open_at_window_start",
+      "exercises": "A lock that began BEFORE the window and ends inside it. The interval is kept whole (overlap test `end > w0`), so its full duration counts toward sleep, but coverage clips it to w0 \u2014 the pre-window days must not appear as days_with_data.",
+      "label_date": "2013-04-15",
+      "expected_window": {
+        "start_utc": 1365393600,
+        "end_utc": 1365998400
+      },
+      "expected_window_local": {
+        "start": "2013-04-08 00:00:00-04:00",
+        "end": "2013-04-15 00:00:00-04:00"
+      },
+      "locked_intervals": [
+        [
+          1365384600,
+          1365423000
+        ],
+        [
+          1365564000,
+          1365591600
+        ],
+        [
+          1365613200,
+          1365616200
+        ],
+        [
+          1365738000,
+          1365765600
+        ]
+      ],
+      "locked_intervals_local": [
+        [
+          "2013-04-07 21:30:00-04:00",
+          "2013-04-08 08:10:00-04:00"
+        ],
+        [
+          "2013-04-09 23:20:00-04:00",
+          "2013-04-10 07:00:00-04:00"
+        ],
+        [
+          "2013-04-10 13:00:00-04:00",
+          "2013-04-10 13:50:00-04:00"
+        ],
+        [
+          "2013-04-11 23:40:00-04:00",
+          "2013-04-12 07:20:00-04:00"
+        ]
+      ],
+      "calls": [],
+      "sms": [],
+      "has_calls": true,
+      "has_sms": true,
+      "expected_features": {
+        "days_with_data": 5.0,
+        "n_sleep_nights": 3.0,
+        "sleep_duration_median": 7.666666666666667,
+        "sleep_onset_hours": 22.839830824102695,
+        "sleep_wake_hours": 7.499361430838873,
+        "sleep_onset_regularity": 0.9563054822912734,
+        "sleep_midpoint_regularity": 0.2722519691606818,
+        "unlock_count_per_day_mean": 0.8,
+        "unlock_count_sd": 0.7483314773547883,
+        "session_count_per_day_mean": 0.0,
+        "session_duration_median": null,
+        "session_duration_iqr": null,
+        "screen_on_fraction": 0.0,
+        "nighttime_use_fraction_personal": null,
+        "nighttime_unlock_per_day_personal": 0.4,
+        "nighttime_use_fraction_fixed": null,
+        "nighttime_unlock_per_day_fixed": 0.0,
+        "circadian_regularity": null,
+        "call_count_per_day": 0.0,
+        "call_present": 1.0,
+        "sms_count_per_day": 0.0,
+        "sms_present": 1.0
+      },
+      "expected_days_with_data": 5.0,
+      "expected_meets_coverage": true
+    },
+    {
+      "name": "interval_open_at_window_end",
+      "exercises": "A lock that starts inside the window and ends AFTER it. Its end is beyond w1, so it must NOT be counted as an unlock (`end < w1` fails) even though the interval itself is kept for sleep. Catches an implementation that counts every interval end.",
+      "label_date": "2013-04-15",
+      "expected_window": {
+        "start_utc": 1365393600,
+        "end_utc": 1365998400
+      },
+      "expected_window_local": {
+        "start": "2013-04-08 00:00:00-04:00",
+        "end": "2013-04-15 00:00:00-04:00"
+      },
+      "locked_intervals": [
+        [
+          1365650100,
+          1365678300
+        ],
+        [
+          1365703200,
+          1365705600
+        ],
+        [
+          1365822000,
+          1365850200
+        ],
+        [
+          1365994200,
+          1366025400
+        ]
+      ],
+      "locked_intervals_local": [
+        [
+          "2013-04-10 23:15:00-04:00",
+          "2013-04-11 07:05:00-04:00"
+        ],
+        [
+          "2013-04-11 14:00:00-04:00",
+          "2013-04-11 14:40:00-04:00"
+        ],
+        [
+          "2013-04-12 23:00:00-04:00",
+          "2013-04-13 06:50:00-04:00"
+        ],
+        [
+          "2013-04-14 22:50:00-04:00",
+          "2013-04-15 07:30:00-04:00"
+        ]
+      ],
+      "calls": [],
+      "sms": [],
+      "has_calls": true,
+      "has_sms": true,
+      "expected_features": {
+        "days_with_data": 6.0,
+        "n_sleep_nights": 3.0,
+        "sleep_duration_median": 7.833333333333333,
+        "sleep_onset_hours": 23.027764056519995,
+        "sleep_wake_hours": 7.138818728933128,
+        "sleep_onset_regularity": 0.17125523709158327,
+        "sleep_midpoint_regularity": 0.11785814239018916,
+        "unlock_count_per_day_mean": 0.5,
+        "unlock_count_sd": 0.7637626158259734,
+        "session_count_per_day_mean": 0.0,
+        "session_duration_median": null,
+        "session_duration_iqr": null,
+        "screen_on_fraction": 0.0,
+        "nighttime_use_fraction_personal": null,
+        "nighttime_unlock_per_day_personal": 0.3333333333333333,
+        "nighttime_use_fraction_fixed": null,
+        "nighttime_unlock_per_day_fixed": 0.0,
+        "circadian_regularity": null,
+        "call_count_per_day": 0.0,
+        "call_present": 1.0,
+        "sms_count_per_day": 0.0,
+        "sms_present": 1.0
+      },
+      "expected_days_with_data": 6.0,
+      "expected_meets_coverage": true
+    },
+    {
+      "name": "empty_window",
+      "exercises": "No lock data at all. Every feature must be NaN with days_with_data = 0 \u2014 NOT zeros. A zero here would read as a real measurement ('slept 0 hours', 'never unlocked') instead of 'unknown', which is the distinction the missing-data rule exists for.",
+      "label_date": "2013-04-15",
+      "expected_window": {
+        "start_utc": 1365393600,
+        "end_utc": 1365998400
+      },
+      "expected_window_local": {
+        "start": "2013-04-08 00:00:00-04:00",
+        "end": "2013-04-15 00:00:00-04:00"
+      },
+      "locked_intervals": [],
+      "locked_intervals_local": [],
+      "calls": [],
+      "sms": [],
+      "has_calls": false,
+      "has_sms": false,
+      "expected_features": {
+        "days_with_data": 0.0,
+        "n_sleep_nights": null,
+        "sleep_duration_median": null,
+        "sleep_onset_hours": null,
+        "sleep_wake_hours": null,
+        "sleep_onset_regularity": null,
+        "sleep_midpoint_regularity": null,
+        "unlock_count_per_day_mean": null,
+        "unlock_count_sd": null,
+        "session_count_per_day_mean": null,
+        "session_duration_median": null,
+        "session_duration_iqr": null,
+        "screen_on_fraction": null,
+        "nighttime_use_fraction_personal": null,
+        "nighttime_unlock_per_day_personal": null,
+        "nighttime_use_fraction_fixed": null,
+        "nighttime_unlock_per_day_fixed": null,
+        "circadian_regularity": null,
+        "call_count_per_day": 0.0,
+        "call_present": 0.0,
+        "sms_count_per_day": 0.0,
+        "sms_present": 0.0
+      },
+      "expected_days_with_data": 0.0,
+      "expected_meets_coverage": false
+    },
+    {
+      "name": "dst_spring_forward",
+      "exercises": "Window spans the 2013-03-10 spring-forward (02:00 \u2192 03:00 skipped). Because pandas' Timedelta is an ABSOLUTE duration, the window START is 2013-03-03 23:00 local, NOT midnight \u2014 Kotlin must use second arithmetic, not LocalDate.minusDays. Also covers a sleep interval spanning the skipped hour, whose wall-clock duration is one hour shorter than its elapsed duration.",
+      "label_date": "2013-03-11",
+      "expected_window": {
+        "start_utc": 1362369600,
+        "end_utc": 1362974400
+      },
+      "expected_window_local": {
+        "start": "2013-03-03 23:00:00-05:00",
+        "end": "2013-03-11 00:00:00-04:00"
+      },
+      "locked_intervals": [
+        [
+          1362543600,
+          1362571800
+        ],
+        [
+          1362717300,
+          1362745500
+        ],
+        [
+          1362889800,
+          1362915000
+        ],
+        [
+          1362934800,
+          1362937500
+        ],
+        [
+          1362971700,
+          1362998700
+        ]
+      ],
+      "locked_intervals_local": [
+        [
+          "2013-03-05 23:20:00-05:00",
+          "2013-03-06 07:10:00-05:00"
+        ],
+        [
+          "2013-03-07 23:35:00-05:00",
+          "2013-03-08 07:25:00-05:00"
+        ],
+        [
+          "2013-03-09 23:30:00-05:00",
+          "2013-03-10 07:30:00-04:00"
+        ],
+        [
+          "2013-03-10 13:00:00-04:00",
+          "2013-03-10 13:45:00-04:00"
+        ],
+        [
+          "2013-03-10 23:15:00-04:00",
+          "2013-03-11 06:45:00-04:00"
+        ]
+      ],
+      "calls": [
+        1362752100
+      ],
+      "sms": [
+        1362618000,
+        1362943800
+      ],
+      "has_calls": true,
+      "has_sms": true,
+      "expected_features": {
+        "days_with_data": 7.0,
+        "n_sleep_nights": 4.0,
+        "sleep_duration_median": 7.666666666666666,
+        "sleep_onset_hours": 23.416666666666664,
+        "sleep_wake_hours": 7.208512167607646,
+        "sleep_onset_regularity": 0.1317722853827385,
+        "sleep_midpoint_regularity": 0.369921779704169,
+        "unlock_count_per_day_mean": 0.5714285714285714,
+        "unlock_count_sd": 0.7284313590846835,
+        "session_count_per_day_mean": 0.0,
+        "session_duration_median": null,
+        "session_duration_iqr": null,
+        "screen_on_fraction": 0.0,
+        "nighttime_use_fraction_personal": null,
+        "nighttime_unlock_per_day_personal": 0.14285714285714285,
+        "nighttime_use_fraction_fixed": null,
+        "nighttime_unlock_per_day_fixed": 0.0,
+        "circadian_regularity": null,
+        "call_count_per_day": 0.14285714285714285,
+        "call_present": 1.0,
+        "sms_count_per_day": 0.2857142857142857,
+        "sms_present": 1.0
+      },
+      "expected_days_with_data": 7.0,
+      "expected_meets_coverage": true
+    },
+    {
+      "name": "dst_fall_back",
+      "exercises": "Window spans the 2013-11-03 fall-back (01:00\u201302:00 occurs twice). Window start is 2013-10-28 01:00 local \u2014 again absolute, not calendar. The overnight lock spans the repeated hour and so is one hour LONGER in elapsed time than its wall clock suggests. All literals avoid the ambiguous 01:00\u201302:00 window itself, so the expected values do not depend on any disambiguation policy.",
+      "label_date": "2013-11-04",
+      "expected_window": {
+        "start_utc": 1382936400,
+        "end_utc": 1383541200
+      },
+      "expected_window_local": {
+        "start": "2013-10-28 01:00:00-04:00",
+        "end": "2013-11-04 00:00:00-05:00"
+      },
+      "locked_intervals": [
+        [
+          1383102600,
+          1383130800
+        ],
+        [
+          1383276300,
+          1383304500
+        ],
+        [
+          1383449400,
+          1383481800
+        ],
+        [
+          1383505200,
+          1383508200
+        ],
+        [
+          1383537900,
+          1383565200
+        ]
+      ],
+      "locked_intervals_local": [
+        [
+          "2013-10-29 23:10:00-04:00",
+          "2013-10-30 07:00:00-04:00"
+        ],
+        [
+          "2013-10-31 23:25:00-04:00",
+          "2013-11-01 07:15:00-04:00"
+        ],
+        [
+          "2013-11-02 23:30:00-04:00",
+          "2013-11-03 07:30:00-05:00"
+        ],
+        [
+          "2013-11-03 14:00:00-05:00",
+          "2013-11-03 14:50:00-05:00"
+        ],
+        [
+          "2013-11-03 23:05:00-05:00",
+          "2013-11-04 06:40:00-05:00"
+        ]
+      ],
+      "calls": [
+        1383321600,
+        1383522300
+      ],
+      "sms": [
+        1383138000
+      ],
+      "has_calls": true,
+      "has_sms": true,
+      "expected_features": {
+        "days_with_data": 7.0,
+        "n_sleep_nights": 4.0,
+        "sleep_duration_median": 7.833333333333333,
+        "sleep_onset_hours": 23.291666666666664,
+        "sleep_wake_hours": 7.1042231862523195,
+        "sleep_onset_regularity": 0.17182183202158682,
+        "sleep_midpoint_regularity": 0.17013532270732054,
+        "unlock_count_per_day_mean": 0.5714285714285714,
+        "unlock_count_sd": 0.7284313590846835,
+        "session_count_per_day_mean": 0.0,
+        "session_duration_median": null,
+        "session_duration_iqr": null,
+        "screen_on_fraction": 0.0,
+        "nighttime_use_fraction_personal": null,
+        "nighttime_unlock_per_day_personal": 0.14285714285714285,
+        "nighttime_use_fraction_fixed": null,
+        "nighttime_unlock_per_day_fixed": 0.0,
+        "circadian_regularity": null,
+        "call_count_per_day": 0.2857142857142857,
+        "call_present": 1.0,
+        "sms_count_per_day": 0.14285714285714285,
+        "sms_present": 1.0
+      },
+      "expected_days_with_data": 7.0,
+      "expected_meets_coverage": true
+    },
+    {
+      "name": "band_edge_tiebreak",
+      "exercises": "Pins the BAND_EDGE_EPS tie-break convention itself, in both directions. Five identical nights (onset 23:30, wake 07:10) put the person-relative night band at [23:30, 07:10). A 45-minute lock ends EXACTLY on the low edge (23:30) and each sleep ends EXACTLY on the high edge (07:10), so every night contributes one unlock at each bound. Convention: low edge \u2192 INSIDE, high edge \u2192 OUTSIDE, hence exactly the 23:30 unlocks count as night-time. Flipping either half of the convention changes nighttime_unlock_per_day_personal, so this case tests the RULE rather than the tolerance \u2014 which a 1-ULP difference in the circular mean cannot do.",
+      "label_date": "2013-04-15",
+      "expected_window": {
+        "start_utc": 1365393600,
+        "end_utc": 1365998400
+      },
+      "expected_window_local": {
+        "start": "2013-04-08 00:00:00-04:00",
+        "end": "2013-04-15 00:00:00-04:00"
+      },
+      "locked_intervals": [
+        [
+          1365475500,
+          1365478200
+        ],
+        [
+          1365478200,
+          1365505800
+        ],
+        [
+          1365523200,
+          1365526800
+        ],
+        [
+          1365534000,
+          1365535800
+        ],
+        [
+          1365561900,
+          1365564600
+        ],
+        [
+          1365564600,
+          1365592200
+        ],
+        [
+          1365609600,
+          1365613200
+        ],
+        [
+          1365620400,
+          1365622200
+        ],
+        [
+          1365648300,
+          1365651000
+        ],
+        [
+          1365651000,
+          1365678600
+        ],
+        [
+          1365696000,
+          1365699600
+        ],
+        [
+          1365706800,
+          1365708600
+        ],
+        [
+          1365734700,
+          1365737400
+        ],
+        [
+          1365737400,
+          1365765000
+        ],
+        [
+          1365782400,
+          1365786000
+        ],
+        [
+          1365793200,
+          1365795000
+        ],
+        [
+          1365821100,
+          1365823800
+        ],
+        [
+          1365823800,
+          1365851400
+        ]
+      ],
+      "locked_intervals_local": [
+        [
+          "2013-04-08 22:45:00-04:00",
+          "2013-04-08 23:30:00-04:00"
+        ],
+        [
+          "2013-04-08 23:30:00-04:00",
+          "2013-04-09 07:10:00-04:00"
+        ],
+        [
+          "2013-04-09 12:00:00-04:00",
+          "2013-04-09 13:00:00-04:00"
+        ],
+        [
+          "2013-04-09 15:00:00-04:00",
+          "2013-04-09 15:30:00-04:00"
+        ],
+        [
+          "2013-04-09 22:45:00-04:00",
+          "2013-04-09 23:30:00-04:00"
+        ],
+        [
+          "2013-04-09 23:30:00-04:00",
+          "2013-04-10 07:10:00-04:00"
+        ],
+        [
+          "2013-04-10 12:00:00-04:00",
+          "2013-04-10 13:00:00-04:00"
+        ],
+        [
+          "2013-04-10 15:00:00-04:00",
+          "2013-04-10 15:30:00-04:00"
+        ],
+        [
+          "2013-04-10 22:45:00-04:00",
+          "2013-04-10 23:30:00-04:00"
+        ],
+        [
+          "2013-04-10 23:30:00-04:00",
+          "2013-04-11 07:10:00-04:00"
+        ],
+        [
+          "2013-04-11 12:00:00-04:00",
+          "2013-04-11 13:00:00-04:00"
+        ],
+        [
+          "2013-04-11 15:00:00-04:00",
+          "2013-04-11 15:30:00-04:00"
+        ],
+        [
+          "2013-04-11 22:45:00-04:00",
+          "2013-04-11 23:30:00-04:00"
+        ],
+        [
+          "2013-04-11 23:30:00-04:00",
+          "2013-04-12 07:10:00-04:00"
+        ],
+        [
+          "2013-04-12 12:00:00-04:00",
+          "2013-04-12 13:00:00-04:00"
+        ],
+        [
+          "2013-04-12 15:00:00-04:00",
+          "2013-04-12 15:30:00-04:00"
+        ],
+        [
+          "2013-04-12 22:45:00-04:00",
+          "2013-04-12 23:30:00-04:00"
+        ],
+        [
+          "2013-04-12 23:30:00-04:00",
+          "2013-04-13 07:10:00-04:00"
+        ]
+      ],
+      "calls": [],
+      "sms": [],
+      "has_calls": true,
+      "has_sms": true,
+      "expected_features": {
+        "days_with_data": 6.0,
+        "n_sleep_nights": 5.0,
+        "sleep_duration_median": 7.666666666666667,
+        "sleep_onset_hours": 23.5,
+        "sleep_wake_hours": 7.166666666666666,
+        "sleep_onset_regularity": -0.0,
+        "sleep_midpoint_regularity": -0.0,
+        "unlock_count_per_day_mean": 3.0,
+        "unlock_count_sd": 1.4142135623730951,
+        "session_count_per_day_mean": 0.6666666666666666,
+        "session_duration_median": 120.0,
+        "session_duration_iqr": 0.0,
+        "screen_on_fraction": 0.05555555555555555,
+        "nighttime_use_fraction_personal": 0.0,
+        "nighttime_unlock_per_day_personal": 0.8333333333333334,
+        "nighttime_use_fraction_fixed": 0.0,
+        "nighttime_unlock_per_day_fixed": 0.0,
+        "circadian_regularity": 1.0,
+        "call_count_per_day": 0.0,
+        "call_present": 1.0,
+        "sms_count_per_day": 0.0,
+        "sms_present": 1.0
+      },
+      "expected_days_with_data": 6.0,
+      "expected_meets_coverage": true
+    },
+    {
+      "name": "days_with_data_eight",
+      "exercises": "The recorded quirk (feature-spec \u00a78): a 7-day window reports EIGHT days of coverage because an interval crossing w1 clips to the label day's local midnight, whose DATE is the label day. days_with_data is the denominator of every per-day rate, so this deflates them. Mirrored deliberately \u2014 parity outranks correctness \u2014 and pinned here so neither side 'fixes' it unilaterally.",
+      "label_date": "2013-04-15",
+      "expected_window": {
+        "start_utc": 1365393600,
+        "end_utc": 1365998400
+      },
+      "expected_window_local": {
+        "start": "2013-04-08 00:00:00-04:00",
+        "end": "2013-04-15 00:00:00-04:00"
+      },
+      "locked_intervals": [
+        [
+          1365478200,
+          1365505800
+        ],
+        [
+          1365564600,
+          1365592200
+        ],
+        [
+          1365651000,
+          1365678600
+        ],
+        [
+          1365737400,
+          1365765000
+        ],
+        [
+          1365823800,
+          1365851400
+        ],
+        [
+          1365910200,
+          1365937800
+        ],
+        [
+          1365996600,
+          1366024200
+        ]
+      ],
+      "locked_intervals_local": [
+        [
+          "2013-04-08 23:30:00-04:00",
+          "2013-04-09 07:10:00-04:00"
+        ],
+        [
+          "2013-04-09 23:30:00-04:00",
+          "2013-04-10 07:10:00-04:00"
+        ],
+        [
+          "2013-04-10 23:30:00-04:00",
+          "2013-04-11 07:10:00-04:00"
+        ],
+        [
+          "2013-04-11 23:30:00-04:00",
+          "2013-04-12 07:10:00-04:00"
+        ],
+        [
+          "2013-04-12 23:30:00-04:00",
+          "2013-04-13 07:10:00-04:00"
+        ],
+        [
+          "2013-04-13 23:30:00-04:00",
+          "2013-04-14 07:10:00-04:00"
+        ],
+        [
+          "2013-04-14 23:30:00-04:00",
+          "2013-04-15 07:10:00-04:00"
+        ]
+      ],
+      "calls": [
+        1365516000
+      ],
+      "sms": [
+        1365710400
+      ],
+      "has_calls": true,
+      "has_sms": true,
+      "expected_features": {
+        "days_with_data": 8.0,
+        "n_sleep_nights": 7.0,
+        "sleep_duration_median": 7.666666666666667,
+        "sleep_onset_hours": 23.5,
+        "sleep_wake_hours": 7.166666666666666,
+        "sleep_onset_regularity": 5.691824308343959e-08,
+        "sleep_midpoint_regularity": -0.0,
+        "unlock_count_per_day_mean": 0.75,
+        "unlock_count_sd": 0.4330127018922193,
+        "session_count_per_day_mean": 0.0,
+        "session_duration_median": null,
+        "session_duration_iqr": null,
+        "screen_on_fraction": 0.0,
+        "nighttime_use_fraction_personal": null,
+        "nighttime_unlock_per_day_personal": 0.0,
+        "nighttime_use_fraction_fixed": null,
+        "nighttime_unlock_per_day_fixed": 0.0,
+        "circadian_regularity": null,
+        "call_count_per_day": 0.14285714285714285,
+        "call_present": 1.0,
+        "sms_count_per_day": 0.14285714285714285,
+        "sms_present": 1.0
+      },
+      "expected_days_with_data": 8.0,
+      "expected_meets_coverage": true
+    }
+  ]
 }
