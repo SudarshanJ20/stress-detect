@@ -49,6 +49,24 @@ success. It was a loss. **Baseline reporting against BOTH the global mean and th
 subject mean is non-negotiable**, and a Spearman near zero outweighs a MAE that fell for the
 wrong reason (an easier target).
 
+## Phase 4 addendum — temporal deep models (does capacity rescue it?)
+A CNN-LSTM over the 7-day daily **sequence** (vs XGBoost's flat aggregate) — full write-up in
+`docs/phase4-results.md`:
+
+| model | MAE | Spearman |
+|---|---|---|
+| XGBoost (flat) | 22.59 | −0.146 |
+| **CNN-LSTM (sequence, 5 seeds)** | **20.76 ± 0.10** | −0.115 |
+| TinyTransformer (sequence, 3 seeds) | 21.83 ± 0.07 | −0.032 |
+| global mean | 19.94 | — |
+| subject mean | 16.95 | 0.47 |
+
+Sequence structure **stably helps** (22.59 → 20.76, seed SD 0.10; both DL arms beat flat, so
+the gain is representation- not architecture-driven) yet the task is **still unsolvable**
+(below global mean, 3.8 off subject mean, Spearman negative). This **closes the last
+objection** — "the model was too simple." Label-permutation passed (no leakage); training
+curves show the net can learn but only reaches ≈mean prediction. **Answer: not capacity.**
+
 ## Conclusion & next step
 StudentLife is the wrong place to *prove* passive-behaviour stress prediction — the
 momentary target has no cross-subject behavioural signal at any granularity. The Phase 2
