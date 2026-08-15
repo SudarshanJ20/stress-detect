@@ -1,7 +1,7 @@
 # Feature Specification — SINGLE SOURCE OF TRUTH
 
 ```
-SPEC_VERSION: v0.6.0
+SPEC_VERSION: v0.7.0
 ```
 
 This file is **authoritative**. Both the Android extractor (`android/…/features`) and the
@@ -251,7 +251,11 @@ construct exactly this; embedded in the model's `metadata_props`):**
 input  seq    : float32 (B, 7, 8)   # dynamic, standardized
 input  static : float32 (B, 9)      # static, standardized
 output stress : float32 (B,)        # 0–100, 100 = most stressed
-metadata: spec_version = <SPEC_VERSION>, input_contract = "<the line above>"
+metadata: spec_version    = <SPEC_VERSION>
+          input_contract  = "<the line above>"
+          standardization = {dyn_mean, dyn_sd, static_mean, static_sd,
+                             order: "standardize_then_nan_to_zero"}   # REQUIRED — see §10.1
+          dyn_features / static_features = the column order of each input
 ```
 
 Inference is **batch = 1** (`(1,7,8)` + `(1,9)`) — the app scores one user-window at a time;
@@ -402,6 +406,167 @@ only dates with a non-zero clipped duration, or exclude an interval clipped to e
 that order, never one alone. Note the Phase-2/4 results are a validated null, so the
 practical impact on any published number is nil; this is a correctness debt, not a
 result-changing one. **TODO(team): decide.**
+
+### 9. Clock-band edge resolution — `BAND_EDGE_EPS` (Phase 6, v0.7.0)
+
+**Found by the parity fixture**, on its first run, in a rule nobody suspected. This section
+is normative and binding on **both** extractors.
+
+**The rule.**
+
+```
+BAND_EDGE_EPS = 1e-9   (hours; = 3.6 µs)
+
+A clock hour within BAND_EDGE_EPS of a band bound is resolved by CONVENTION:
+    within EPS of the INCLUSIVE low  edge  ->  INSIDE
+    within EPS of the EXCLUSIVE high edge  ->  OUTSIDE
+otherwise the ordinary half-open [lo, hi) test applies (wrapping past midnight).
+```
+
+Single source: `ml/src/features/spec_constants.py::BAND_EDGE_EPS` and
+`features/SpecConstants.kt::BAND_EDGE_EPS`, applied in `_in_band` and `ClockBand.contains`
+respectively. Fixing one side only is exactly the divergence `SPEC_VERSION` exists to
+prevent.
+
+**Root cause.** The person-relative night band's bounds are **circular means** — they come
+out of `cos`/`sin`/`atan2`, and **the JVM and numpy's libm differ by ~1 ULP** in those
+functions. Measured on the `days_with_data_eight` fixture case:
+
+| quantity | value |
+|---|---|
+| unlock time 07:10 as a clock hour | `7.166666666666667` |
+| Python/numpy circular mean wake | `7.166666666666666` (1 ULP **below**) |
+| Kotlin/JVM circular mean wake | `7.166666666666668` (1 ULP **above**) |
+
+The unlock therefore fell *outside* the band in Python and *inside* it in Kotlin, and
+`nighttime_unlock_per_day_personal` came out **0.0 vs 0.75** from identical input. Note
+what makes this class of bug nasty: it needs a subject whose unlock time equals *their own
+mean wake time*, which is not exotic — it is what a regular sleeper looks like. And a
+**1-ULP difference flipping a boolean cannot be absorbed by a numerical tolerance**, so the
+1e-6 parity tolerance would never have caught it; the comparison itself had to be made
+deterministic.
+
+**Audit — where else is this failure mode?** A comparison is exposed only if a bound is
+derived from a transcendental function; comparisons over integers, or over floats produced
+by identical IEEE arithmetic on both sides, are bit-identical by construction. Measured
+over the real StudentLife corpus (1231 windows, 3642 circular computations):
+
+| boundary | hits on the real corpus | exposed? |
+|---|---|---|
+| person-relative night band (bound = circular mean) | 12 unlocks exactly on an edge | **YES** — fixed by the snap |
+| sleep midpoint band 20:00 / 12:00 | 47 / 23 exact hits | No — integer-constant bounds, and `hour + minute/60` is bit-identical on both sides |
+| fixed night band 00:00 / 06:00 | 62 exact hits | No — same reason |
+| `MIN_SLEEP_MINUTES` (exactly 90 min) | 2 | No — `(end−start)/3600·60`, identical ops both sides |
+| `MAX_SESSION_MINUTES` (exactly 180 min) | 0 | No — pure integer epoch-second comparison |
+| `screen_on_fraction` clamp at 1.0 | 0 | No — integer-derived |
+| circadian hourly binning | — | No — integer epoch arithmetic |
+| circular SD as `R → 0` | min observed `R` = **0.0134** | Theoretical only — see below |
+
+The snap is applied uniformly in the shared band function, so the non-exposed bands go
+through it too. That is behaviour-preserving and was verified, not assumed: on the real
+corpus the fixed-band and sleep features changed **0 rows**.
+
+**Related, same family: `R` clamped to ≤ 1.** The mean-resultant length is ≤ 1 by
+construction, but 1-ULP noise pushed it just above 1, making `sqrt(-2 ln R)` **NaN** in
+Kotlin where Python produced ~0. NaN is not close to anything, so no tolerance helps. Both
+sides now clamp. Verified inert: `R > 1.0` occurs in **0 of 1161** real samples. The
+opposite end (`R → 0`, where the circular SD diverges) remains a theoretical hazard only —
+the smallest `R` anywhere in the corpus is 0.0134, far from the cliff.
+
+**Real-corpus impact of the v0.7.0 change** (measured, not assumed): **1 of 1157**
+subject-day samples changes, on two features —
+`nighttime_unlock_per_day_personal` (Δ 0.333) and `nighttime_use_fraction_personal`
+(Δ 0.002). Everything else is bit-identical. For comparison, the rejected alternative of
+quantizing the bounds to whole minutes would have changed 36 of 1157 rows.
+
+**Retrained and confirmed, not assumed.** The full Phase-4 pipeline was re-run on the
+corrected features and re-exported at v0.7.0. Every headline number is **unchanged**:
+CNN-LSTM LOSO **MAE 20.76 ± 0.10** (5 seeds), Spearman **−0.116**, global-mean baseline
+**19.94**, subject-mean **16.95**, beats-own-mean **14/48**, label-permutation sanity still
+clean. So the validated null stands and no published figure moves — which was the
+expectation, but it was verified rather than asserted.
+
+**Pinned by the fixture.** `band_edge_tiebreak` puts five identical nights' unlocks exactly
+on *both* bounds — 23:30 on the low edge, 07:10 on the high edge — so
+`nighttime_unlock_per_day_personal` = 5/6 counts the low-edge unlocks and excludes the
+high-edge ones. Flipping either half of the convention changes the number. The case tests
+the **rule**, not the tolerance, which is the only way to pin a boolean.
+
+### 10. What Phase-6 parity taught (binding on future phases)
+
+Two findings from building the contract. Both are about the *shape* of the verification,
+not about a threshold, and both generalise beyond this project.
+
+#### 10.1 A model artifact without its preprocessing is INCOMPLETE
+
+**The finding.** The Phase-4 exporter wrote the trained weights and nothing else. But the
+model consumes **standardized** inputs — the scaler is fit in
+`ml/src/training/loso_torch.py::_fit_scaler` and applied before every forward pass — and
+that scaler existed only inside the training process. It was never exported. The Android
+app therefore had no way to reproduce the transform, and would have fed the model **raw
+feature values** (unlock counts, hours, fractions) where it expected z-scores.
+
+**Why this is the most instructive failure here: nothing would have gone wrong.** Measured
+on the emulator with standardization deliberately disabled, the same window produced
+
+```
+PyTorch (correct, standardized)   48.54
+on-device (raw features)          62.60      Δ 14.05 stress points
+```
+
+No crash. No exception. No warning. No shape error — raw features have exactly the same
+shape as standardized ones, so every type check and every assertion in the pipeline
+passes. The app would have displayed **62.60 out of 100**, a perfectly plausible-looking
+stress score, and the only way to discover it was wrong would have been to already know the
+right answer. Compare this with the DST bug (§8), which at least shifted a window by a
+detectable hour, or the band-edge bug (§9), which the fixture caught on its first run. This
+one is worse than both: it is a *silent, confident, wrong number reaching the user*, and it
+sits in the one part of the system the feature-parity fixture does not cover.
+
+**The rule, binding on every future export.** The ONNX file MUST carry everything needed to
+go from a feature vector to a prediction — not just the weights:
+
+| metadata key | why it must travel with the model |
+|---|---|
+| `standardization` | mean/sd per input channel, plus the ORDER (`standardize_then_nan_to_zero`) — without it the app cannot reproduce training-time preprocessing |
+| `spec_version` | the feature definitions the weights were fitted under; a mismatch means the app computes different features than the model expects |
+| `input_contract` | shapes and dtypes |
+| `dyn_features` / `static_features` | the column ORDER — a permuted vector is another silent wrong answer |
+
+`OnnxStressModel` **refuses to load** a model missing `spec_version` or `standardization`,
+rather than defaulting to identity scaling. A missing scaler must be a load-time failure,
+never an implicit no-op: the whole failure mode above is that "do nothing" looks exactly
+like "do the right thing" until someone checks the number.
+
+**Generalisation:** a preprocessing step that lives only in the training script is a
+deployment bug waiting to happen. If a transform is required to interpret the model's
+inputs, it is part of the model artifact, not part of the training code.
+
+#### 10.2 Pin the INTERMEDIATES, not only the final vector
+
+**The finding.** When the window arithmetic was deliberately swapped from absolute to
+calendar days (the §8 DST bug, reintroduced on purpose to check the test could catch it),
+the fixture failed **only** the `expected_window` assertion. Across all 13 cases,
+**not one feature value changed** — the DST cases' extra hour happened to contain no locked
+interval, so every one of the 22 features came out identical.
+
+Had the contract compared only feature vectors — the obvious design — a real
+one-hour window error would have passed the entire parity suite, on a fixture specifically
+built to contain two DST transitions.
+
+**The rule.** A parity contract must pin the intermediate quantities each side computes on
+the way to the answer, not just the answer:
+
+- `expected_window` — the derived `[w0, w1)` bounds, per case (catches day arithmetic);
+- `expected_days_with_data` / `expected_meets_coverage` — the coverage gate as a separate
+  assertion, so a gate disagreement cannot hide behind matching feature values;
+- derived LOCKED intervals — Android-only, so not cross-language, but pinned by
+  `LockedIntervalDerivationTest` for the same reason (§8's drop-never-clamp rules).
+
+**Generalisation:** equal outputs do not imply equal computation. A wrong intermediate is
+only *sometimes* visible in the output, which means an output-only test detects the bug
+only for the inputs where it happens to propagate — and silently certifies the rest. Pin
+every step whose correctness you actually care about.
 
 ---
 
