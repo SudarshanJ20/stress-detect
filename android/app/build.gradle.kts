@@ -72,8 +72,18 @@ dependencies {
     ksp(libs.androidx.room.compiler)
     implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.kotlinx.coroutines.android)
+    // ONNX Runtime Mobile — on-device inference (feature-spec §7 contract).
+    implementation(libs.onnxruntime.android)
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.konsist)
+    // Real JSON parser for the fixture: android.* is stubbed in unit tests, and the
+    // fixture must be read by the same strict rules the Python side writes it with.
+    testImplementation(libs.json)
+
+    // Instrumented (on-device) tests: the ONNX parity check must run on a real device /
+    // emulator, because that is where ONNX Runtime Mobile's own kernels execute.
+    androidTestImplementation(libs.androidx.test.junit)
+    androidTestImplementation(libs.androidx.test.runner)
 }
