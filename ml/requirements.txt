@@ -8,8 +8,11 @@ xgboost==2.1.4
 shap==0.46.0            # explainability (used from Phase 4)
 matplotlib==3.9.2
 pyarrow==17.0.0         # Parquet I/O
+pytest==8.3.2          # SPEC_VERSION guard + tests
 
-# Later phases (pin against the Kaggle training runtime when reached; NOT installed here):
-# torch            # Phase 4 deep models
-# onnx             # Phase 6 export (+ SPEC_VERSION metadata)
-# onnxruntime      # Phase 6 parity vs on-device
+# Phase 4 deep-learning stack (installed in ml/.venv).
+# NOTE: torch and xgboost each ship their own OpenMP runtime and segfault if co-loaded in
+# one process on macOS — run_dl.py uses torch only (KMP_DUPLICATE_LIB_OK=TRUE guard).
+torch==2.2.2
+onnx==1.16.2           # ONNX export (+ SPEC_VERSION / input-contract metadata)
+onnxruntime==1.18.1    # PyTorch↔ONNX runtime-parity check
