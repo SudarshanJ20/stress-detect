@@ -92,7 +92,7 @@ fun PermissionsScreen(
         } else if (!usageAccessGranted) {
             Caption(
                 "Without usage access there is no phone data to look at, so you will get " +
-                    "your questionnaire result on its own."
+                    "your check-in result on its own."
             )
         }
     }

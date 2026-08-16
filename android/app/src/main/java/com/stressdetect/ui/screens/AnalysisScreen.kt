@@ -41,10 +41,10 @@ import com.stressdetect.ui.theme.Space
 fun AnalysisScreen(completedSteps: Int) {
     val calm = LocalCalmColors.current
     val steps = listOf(
-        "Reading screen and lock history",
-        "Reading call and message times",
+        "Looking at your screen activity",
+        "Looking at when calls and messages happened",
         "Working out your patterns",
-        "Running the model",
+        "Nearly there",
     )
 
     Column(
