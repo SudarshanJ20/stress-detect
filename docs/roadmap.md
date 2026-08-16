@@ -116,9 +116,35 @@ Kotlin feature extraction == Python on the shared fixture; model export.
   the 13 cases — so a parity test that compares only final outputs can certify a wrong
   intermediate; pin the intermediates too.
 
-## Phase 7 — UI + demo
+## Phase 7 — UI + demo &nbsp;`[COMPLETE]`
 Result screen (stress percentage, contributing factors, suggestions) and a trend chart.
-- **Exit:** end-to-end demo runs in under 2 minutes.
+- **Exit met:** the full flow — onboarding → permissions → PSS-4 → analysis → result —
+  runs end to end on an emulator in **21 seconds**, well inside the 2-minute target. ✅
+- **PSS-4** (Cohen, Kamarck & Mermelstein 1983) in the published wording, verified against
+  two independent sources; items 2 and 3 reverse-scored, total 0–16. `Pss4Test` asserts each
+  item **verbatim** so a copy edit fails the build, and asserts the reversal per item —
+  confirmed on device (answers 2/2/1/3 → **10 of 16**, which only holds if the reversal is
+  applied). The published stem asks about *the last month* while the phone window is 7 days;
+  the wording was NOT adapted, and the result screen states the mismatch.
+- **Framing is in the UI, not a help page:** the questionnaire is the result; the model
+  estimate is visually demoted (muted, dashed, smaller) and carries its own invalidation
+  inline, with the real numbers behind an expander (20.8 vs 16.9 vs 19.9, ρ = −0.12);
+  factors are labelled context, not causes; suggestions are a fixed lookup table with a
+  "not advice for you personally" disclaimer. No diagnostic language anywhere.
+- **Attribution is occlusion, not SHAP, and is not called SHAP.** SHAP yields *global*
+  importances; ranking by those would have meant comparing the user against the StudentLife
+  population, which the self-baseline rule forbids. Occlusion is local by construction.
+  Factor wording compares each user only to **their own week**.
+- **Honest degradation is in the type**: `AnalysisResult` carries `usageAccessMissing`,
+  `meetsCoverage`, `commsIncluded` and `modelUnavailableReason` explicitly, so a missing
+  stream cannot shrink the factor list silently — declined call/SMS features are excluded
+  from ranking (absent ≠ average) and the screen says so.
+- **Demo mode** replays the fixture's `demo_week` case — added because every other case is a
+  four-interval rule test (~0.7 unlocks/day), correct for what it pins but nonsense as an
+  example week. It is generated and parity-checked with the rest, so the demo cannot drift.
+  A `DEMO DATA` banner sits in the root scaffold, on every screen.
+- **Lesson recorded (feature-spec §10.3):** the "busiest day" copy bug — correct numbers,
+  false sentence, every test green. Generated prose is output that unit tests do not cover.
 
 ## Phase 8 — Evaluation + writeup
 Final LOSO, ablations, SHAP, calibration, per-subject variance.
