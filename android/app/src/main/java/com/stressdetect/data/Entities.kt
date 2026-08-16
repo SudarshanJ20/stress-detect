@@ -119,6 +119,26 @@ data class FeatureVectorEntity(
 )
 
 /**
+ * One completed check-in, for the history chart.
+ *
+ * **Only the total and the time.** The four individual answers are deliberately NOT stored:
+ * the chart needs the total, and item-level responses about someone's sense of control over
+ * their life are more sensitive than the sum without being more useful here. Storing less
+ * is the whole design.
+ *
+ * [isDemo] keeps rehearsal runs out of a real history — a demo must never leave a mark on
+ * someone's actual trend.
+ */
+@Entity(tableName = "check_in", indices = [Index("takenAtUtc")])
+data class CheckInEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val takenAtUtc: Long,
+    /** PSS-4 total, 0–16. Nothing from the model contributes to this. */
+    val score: Int,
+    val isDemo: Boolean,
+)
+
+/**
  * One retrospective extraction attempt. Kept so a thin window can be explained after the
  * fact — how far back the OS actually answered, which permissions were held, whether the
  * CallLog row cap looks like it was hit (device-probe §3).

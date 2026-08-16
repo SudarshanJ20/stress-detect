@@ -74,6 +74,22 @@ interface FeatureVectorDao {
 }
 
 @Dao
+interface CheckInDao {
+    @Insert
+    suspend fun insert(checkIn: CheckInEntity): Long
+
+    /** Oldest → newest, so the chart reads left to right without re-sorting. */
+    @Query("SELECT * FROM check_in WHERE isDemo = :isDemo ORDER BY takenAtUtc ASC")
+    suspend fun history(isDemo: Boolean): List<CheckInEntity>
+
+    @Query("SELECT * FROM check_in WHERE isDemo = :isDemo ORDER BY takenAtUtc DESC LIMIT 1")
+    suspend fun latest(isDemo: Boolean): CheckInEntity?
+
+    @Query("DELETE FROM check_in")
+    suspend fun deleteAll(): Int
+}
+
+@Dao
 interface ExtractionRunDao {
     @Insert
     suspend fun insert(run: ExtractionRunEntity): Long

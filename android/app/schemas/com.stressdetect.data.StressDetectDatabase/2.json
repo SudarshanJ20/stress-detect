@@ -1,0 +1,544 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 2,
+    "identityHash": "a878fbe6fca3d81a317519e2fa76139a",
+    "entities": [
+      {
+        "tableName": "raw_usage_event",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `epochSeconds` INTEGER NOT NULL, `type` TEXT NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "epochSeconds",
+            "columnName": "epochSeconds",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "type",
+            "columnName": "type",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_raw_usage_event_epochSeconds",
+            "unique": false,
+            "columnNames": [
+              "epochSeconds"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_raw_usage_event_epochSeconds` ON `${TABLE_NAME}` (`epochSeconds`)"
+          }
+        ],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "locked_interval",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `startUtc` INTEGER NOT NULL, `endUtc` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "startUtc",
+            "columnName": "startUtc",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "endUtc",
+            "columnName": "endUtc",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_locked_interval_startUtc_endUtc",
+            "unique": true,
+            "columnNames": [
+              "startUtc",
+              "endUtc"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_locked_interval_startUtc_endUtc` ON `${TABLE_NAME}` (`startUtc`, `endUtc`)"
+          }
+        ],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "comm_event",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `kind` TEXT NOT NULL, `epochSeconds` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "kind",
+            "columnName": "kind",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "epochSeconds",
+            "columnName": "epochSeconds",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_comm_event_kind_epochSeconds",
+            "unique": true,
+            "columnNames": [
+              "kind",
+              "epochSeconds"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_comm_event_kind_epochSeconds` ON `${TABLE_NAME}` (`kind`, `epochSeconds`)"
+          }
+        ],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "daily_app_usage",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `packageName` TEXT NOT NULL, `bucketStartUtc` INTEGER NOT NULL, `totalForegroundSeconds` INTEGER NOT NULL, `lastTimeUsedUtc` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "packageName",
+            "columnName": "packageName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "bucketStartUtc",
+            "columnName": "bucketStartUtc",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "totalForegroundSeconds",
+            "columnName": "totalForegroundSeconds",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastTimeUsedUtc",
+            "columnName": "lastTimeUsedUtc",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_daily_app_usage_bucketStartUtc_packageName",
+            "unique": true,
+            "columnNames": [
+              "bucketStartUtc",
+              "packageName"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_daily_app_usage_bucketStartUtc_packageName` ON `${TABLE_NAME}` (`bucketStartUtc`, `packageName`)"
+          }
+        ],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "feature_vector",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`labelDate` TEXT NOT NULL, `specVersion` TEXT NOT NULL, `zoneId` TEXT NOT NULL, `windowStartUtc` INTEGER NOT NULL, `windowEndUtc` INTEGER NOT NULL, `computedAtUtc` INTEGER NOT NULL, `meetsCoverage` INTEGER NOT NULL, `daysWithData` REAL, `nSleepNights` REAL, `sleepDurationMedian` REAL, `sleepOnsetHours` REAL, `sleepWakeHours` REAL, `sleepOnsetRegularity` REAL, `sleepMidpointRegularity` REAL, `unlockCountPerDayMean` REAL, `unlockCountSd` REAL, `sessionCountPerDayMean` REAL, `sessionDurationMedian` REAL, `sessionDurationIqr` REAL, `screenOnFraction` REAL, `nighttimeUseFractionPersonal` REAL, `nighttimeUnlockPerDayPersonal` REAL, `nighttimeUseFractionFixed` REAL, `nighttimeUnlockPerDayFixed` REAL, `circadianRegularity` REAL, `callCountPerDay` REAL, `callPresent` REAL, `smsCountPerDay` REAL, `smsPresent` REAL, PRIMARY KEY(`labelDate`, `specVersion`))",
+        "fields": [
+          {
+            "fieldPath": "labelDate",
+            "columnName": "labelDate",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "specVersion",
+            "columnName": "specVersion",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "zoneId",
+            "columnName": "zoneId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "windowStartUtc",
+            "columnName": "windowStartUtc",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "windowEndUtc",
+            "columnName": "windowEndUtc",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "computedAtUtc",
+            "columnName": "computedAtUtc",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "meetsCoverage",
+            "columnName": "meetsCoverage",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "daysWithData",
+            "columnName": "daysWithData",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "nSleepNights",
+            "columnName": "nSleepNights",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "sleepDurationMedian",
+            "columnName": "sleepDurationMedian",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "sleepOnsetHours",
+            "columnName": "sleepOnsetHours",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "sleepWakeHours",
+            "columnName": "sleepWakeHours",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "sleepOnsetRegularity",
+            "columnName": "sleepOnsetRegularity",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "sleepMidpointRegularity",
+            "columnName": "sleepMidpointRegularity",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "unlockCountPerDayMean",
+            "columnName": "unlockCountPerDayMean",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "unlockCountSd",
+            "columnName": "unlockCountSd",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "sessionCountPerDayMean",
+            "columnName": "sessionCountPerDayMean",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "sessionDurationMedian",
+            "columnName": "sessionDurationMedian",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "sessionDurationIqr",
+            "columnName": "sessionDurationIqr",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "screenOnFraction",
+            "columnName": "screenOnFraction",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "nighttimeUseFractionPersonal",
+            "columnName": "nighttimeUseFractionPersonal",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "nighttimeUnlockPerDayPersonal",
+            "columnName": "nighttimeUnlockPerDayPersonal",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "nighttimeUseFractionFixed",
+            "columnName": "nighttimeUseFractionFixed",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "nighttimeUnlockPerDayFixed",
+            "columnName": "nighttimeUnlockPerDayFixed",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "circadianRegularity",
+            "columnName": "circadianRegularity",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "callCountPerDay",
+            "columnName": "callCountPerDay",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "callPresent",
+            "columnName": "callPresent",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "smsCountPerDay",
+            "columnName": "smsCountPerDay",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "smsPresent",
+            "columnName": "smsPresent",
+            "affinity": "REAL",
+            "notNull": false
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "labelDate",
+            "specVersion"
+          ]
+        },
+        "indices": [],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "extraction_run",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `ranAtUtc` INTEGER NOT NULL, `specVersion` TEXT NOT NULL, `zoneId` TEXT NOT NULL, `windowStartUtc` INTEGER NOT NULL, `windowEndUtc` INTEGER NOT NULL, `usageAccessGranted` INTEGER NOT NULL, `callLogPermission` INTEGER NOT NULL, `smsPermission` INTEGER NOT NULL, `rawEventCount` INTEGER NOT NULL, `lockedIntervalCount` INTEGER NOT NULL, `earliestEventUtc` INTEGER, `callRowCount` INTEGER NOT NULL, `smsRowCount` INTEGER NOT NULL, `daysWithData` REAL, `meetsCoverage` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ranAtUtc",
+            "columnName": "ranAtUtc",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "specVersion",
+            "columnName": "specVersion",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "zoneId",
+            "columnName": "zoneId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "windowStartUtc",
+            "columnName": "windowStartUtc",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "windowEndUtc",
+            "columnName": "windowEndUtc",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "usageAccessGranted",
+            "columnName": "usageAccessGranted",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "callLogPermission",
+            "columnName": "callLogPermission",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "smsPermission",
+            "columnName": "smsPermission",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "rawEventCount",
+            "columnName": "rawEventCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lockedIntervalCount",
+            "columnName": "lockedIntervalCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "earliestEventUtc",
+            "columnName": "earliestEventUtc",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "callRowCount",
+            "columnName": "callRowCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "smsRowCount",
+            "columnName": "smsRowCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "daysWithData",
+            "columnName": "daysWithData",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "meetsCoverage",
+            "columnName": "meetsCoverage",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "check_in",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `takenAtUtc` INTEGER NOT NULL, `score` INTEGER NOT NULL, `isDemo` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "takenAtUtc",
+            "columnName": "takenAtUtc",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "score",
+            "columnName": "score",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isDemo",
+            "columnName": "isDemo",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_check_in_takenAtUtc",
+            "unique": false,
+            "columnNames": [
+              "takenAtUtc"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_check_in_takenAtUtc` ON `${TABLE_NAME}` (`takenAtUtc`)"
+          }
+        ],
+        "foreignKeys": []
+      }
+    ],
+    "views": [],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'a878fbe6fca3d81a317519e2fa76139a')"
+    ]
+  }
+}
