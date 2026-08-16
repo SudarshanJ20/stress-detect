@@ -94,6 +94,40 @@ class ArchitectureTest {
             }
     }
 
+    /**
+     * `ui` must not hold the model either.
+     *
+     * Screens render a result; they do not run inference. Routing through `data` is what
+     * keeps the "spec_version mismatch → refuse to run" check in one place instead of
+     * something a screen could skip.
+     */
+    @Test
+    fun `ui does not depend on inference`() {
+        scope.files
+            .withPackage("com.stressdetect.ui..")
+            .assertFalse(testName = "ui must not import inference") { file ->
+                file.imports.any { it.name.startsWith("com.stressdetect.inference") }
+            }
+    }
+
+    /**
+     * `survey` is the PSS-4 instrument: pure Kotlin, no Android, no dependencies on our own
+     * packages. It has to stay that way so the published wording and the reverse-scoring
+     * can be unit-tested directly, and so nothing in the app can quietly make the
+     * questionnaire depend on phone data.
+     */
+    @Test
+    fun `survey is a pure domain package`() {
+        scope.files
+            .withPackage("com.stressdetect.survey..")
+            .assertFalse(testName = "survey must not import android or other app packages") { file ->
+                file.imports.any {
+                    it.name.startsWith("android.") || it.name.startsWith("androidx.") ||
+                        it.name.startsWith("com.stressdetect.")
+                }
+            }
+    }
+
     /** `sensing` must not depend on `ui` or `data` — it is a leaf that others read from. */
     @Test
     fun `sensing depends on neither ui nor data`() {
