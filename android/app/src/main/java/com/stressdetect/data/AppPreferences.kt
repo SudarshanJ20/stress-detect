@@ -25,9 +25,19 @@ class AppPreferences(context: Context) {
         get() = prefs.getBoolean(KEY_DEMO, false)
         set(value) = prefs.edit().putBoolean(KEY_DEMO, value).apply()
 
+    /**
+     * Whether the one-time data explanation has been shown. The full version lives in
+     * About; this gate only decides whether a first-time user sees the short one before
+     * their first check-in, so returning users open straight onto Home.
+     */
+    var hasSeenIntro: Boolean
+        get() = prefs.getBoolean(KEY_SEEN_INTRO, false)
+        set(value) = prefs.edit().putBoolean(KEY_SEEN_INTRO, value).apply()
+
     private companion object {
         const val KEY_THEME = "theme_choice"
         const val KEY_DEMO = "demo_mode"
+        const val KEY_SEEN_INTRO = "has_seen_intro"
         const val THEME_SYSTEM = "SYSTEM"
     }
 }

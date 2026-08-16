@@ -31,6 +31,9 @@ class ResultRepository(
     suspend fun analyse(pss4Responses: List<Int>): AnalysisResult {
         val questionnaireScore = Pss4.score(pss4Responses)
         val demo = preferences.demoMode
+        // Recorded before the phone data is touched: the check-in stands on its own, and a
+        // failure to read usage history must not lose what the person just told us.
+        CheckInRepository(context).record(questionnaireScore, demo)
 
         val window = if (demo) demoWindow() else deviceWindow()
             ?: return AnalysisResult.noUsageAccess(questionnaireScore)
