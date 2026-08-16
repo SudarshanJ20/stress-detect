@@ -29,7 +29,10 @@ local.properties
 captures/
 
 # ── Model assets staged into the app (binaries are exported, never committed) ─
-android/app/src/main/assets/
+# Only the model binary + its reference are ignored. The demo fixture asset IS
+# committed: demo mode is a product feature and must work from a clean clone.
+android/app/src/main/assets/*.onnx
+android/app/src/main/assets/model_reference.json
 
 # ── Throwaway tooling (disposable, never part of the product) ────────────────
 tools/device-probe/
