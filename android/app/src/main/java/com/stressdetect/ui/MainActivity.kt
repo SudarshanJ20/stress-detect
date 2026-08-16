@@ -2,13 +2,13 @@ package com.stressdetect.ui
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
@@ -17,18 +17,22 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
 import com.stressdetect.data.AnalysisResult
 import com.stressdetect.data.AppPreferences
+import com.stressdetect.data.CheckInRepository
 import com.stressdetect.data.ExtractionGateway
 import com.stressdetect.data.ResultRepository
 import com.stressdetect.survey.Pss4
 import com.stressdetect.ui.components.DemoBanner
+import com.stressdetect.ui.screens.AboutScreen
 import com.stressdetect.ui.screens.AnalysisScreen
-import com.stressdetect.ui.screens.OnboardingScreen
+import com.stressdetect.ui.screens.FirstRunScreen
+import com.stressdetect.ui.screens.HistoryScreen
+import com.stressdetect.ui.screens.HomeScreen
 import com.stressdetect.ui.screens.PermissionsScreen
 import com.stressdetect.ui.screens.Pss4Screen
 import com.stressdetect.ui.screens.ResultScreen
@@ -36,16 +40,15 @@ import com.stressdetect.ui.theme.LocalCalmColors
 import com.stressdetect.ui.theme.StressDetectTheme
 import com.stressdetect.ui.theme.ThemeChoice
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 /**
- * Single-activity host for the whole flow.
+ * Single-activity host.
  *
- * State is a small sealed hierarchy rather than a navigation library — five linear screens
- * do not need a graph, and this keeps the dependency surface small.
- *
- * This file imports `data`, `survey` and `ui` only. It never touches `sensing` (Konsist
- * enforces it): permissions and extraction both go through [ExtractionGateway] and
- * [ResultRepository], so no screen can hold a sensor reader.
+ * The app used to be a linear wizard that opened onto a consent wall. It now opens onto
+ * Home, and the wizard is one path through it. Screens reach `data` and `survey` only —
+ * never `sensing`, never `inference` (both Konsist-enforced), so no screen can hold a
+ * sensor reader or a model handle.
  */
 class MainActivity : ComponentActivity() {
 
@@ -55,115 +58,165 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private sealed interface Step {
-    data object Onboarding : Step
-    data object Permissions : Step
-    data class Questionnaire(val index: Int) : Step
-    data object Analysing : Step
-    data class Result(val result: AnalysisResult) : Step
-}
-
 @Composable
 private fun StressDetectApp() {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val preferences = remember { AppPreferences(context) }
     val gateway = remember { ExtractionGateway(context) }
-    val repository = remember { ResultRepository(context) }
+    val resultRepository = remember { ResultRepository(context) }
+    val checkInRepository = remember { CheckInRepository(context) }
 
     var themeChoice by remember {
-        mutableStateOf(runCatching { ThemeChoice.valueOf(preferences.themeChoice) }
-            .getOrDefault(ThemeChoice.SYSTEM))
+        mutableStateOf(
+            runCatching { ThemeChoice.valueOf(preferences.themeChoice) }
+                .getOrDefault(ThemeChoice.SYSTEM)
+        )
     }
     var demoMode by remember { mutableStateOf(preferences.demoMode) }
-    var step by remember { mutableStateOf<Step>(Step.Onboarding) }
     var responses by remember { mutableStateOf(List<Int?>(Pss4.ITEMS.size) { null }) }
     var completedSteps by remember { mutableIntStateOf(0) }
+    var history by remember { mutableStateOf<List<CheckInRepository.Entry>>(emptyList()) }
+    var lastScore by remember { mutableStateOf<Int?>(null) }
+    // Held so About can show the technical read-out of the most recent check-in.
+    var lastResult by remember { mutableStateOf<AnalysisResult?>(null) }
 
-    // Permission state is re-read on every recomposition of the permissions step, because
-    // usage access is granted in Settings — the app gets no callback when it changes.
+    // Usage access is granted in Settings, so there is no callback — it is re-read whenever
+    // the permissions screen is opened.
     var usageGranted by remember { mutableStateOf(false) }
     var commsGranted by remember { mutableStateOf(false) }
+
+    val backStack = rememberBackStack(
+        if (preferences.hasSeenIntro) Screen.Home else Screen.FirstRun
+    )
 
     val requestComms = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { commsGranted = gateway.isCallLogGranted() || gateway.isSmsGranted() }
 
+    // Demo and real check-ins are stored separately, so switching modes reloads the list
+    // that belongs to the mode you are now in.
+    LaunchedEffect(demoMode) {
+        history = checkInRepository.history(isDemo = demoMode)
+        lastScore = history.lastOrNull()?.score
+    }
+
     StressDetectTheme(choice = themeChoice) {
         val calm = LocalCalmColors.current
+
+        BackHandler(enabled = backStack.canGoBack) { backStack.pop() }
+
         Surface(Modifier.fillMaxSize(), color = calm.paper) {
-            // API 35 draws edge-to-edge by default, so content would otherwise sit under
-            // the status bar and the gesture handle. safeDrawing covers both, plus cutouts.
             Column(Modifier.fillMaxSize().safeDrawingPadding()) {
                 if (demoMode) DemoBanner()
 
-                Box(Modifier.fillMaxSize().padding(top = if (demoMode) 4.dp else 0.dp)) {
-                    when (val current = step) {
-                        is Step.Onboarding -> OnboardingScreen(
+                Box(Modifier.fillMaxSize()) {
+                    when (val current = backStack.current) {
+                        is Screen.FirstRun -> FirstRunScreen(
                             onContinue = {
+                                preferences.hasSeenIntro = true
                                 usageGranted = gateway.isUsageAccessGranted()
                                 commsGranted = gateway.isCallLogGranted() || gateway.isSmsGranted()
-                                step = Step.Permissions
+                                backStack.replaceAll(Screen.Permissions)
                             },
-                            onSecretDemoToggle = {
-                                demoMode = !demoMode
-                                preferences.demoMode = demoMode
-                            },
-                            themeChoice = themeChoice,
-                            onThemeChange = { themeChoice = it },
                         )
 
-                        is Step.Permissions -> PermissionsScreen(
+                        is Screen.Permissions -> PermissionsScreen(
                             usageAccessGranted = usageGranted,
                             commsGranted = commsGranted,
                             demoMode = demoMode,
                             onOpenUsageSettings = {
                                 context.startActivity(gateway.usageAccessSettingsIntent())
                             },
-                            onRequestComms = { requestComms.launch(gateway.auxiliaryRuntimePermissions()) },
-                            onContinue = { step = Step.Questionnaire(0) },
+                            onRequestComms = {
+                                requestComms.launch(gateway.auxiliaryRuntimePermissions())
+                            },
+                            onContinue = { backStack.replaceAll(Screen.Home) },
                         )
 
-                        is Step.Questionnaire -> Pss4Screen(
-                            itemIndex = current.index,
-                            selected = responses[current.index],
+                        is Screen.Home -> HomeScreen(
+                            lastScore = lastScore,
+                            onCheckIn = {
+                                responses = List(Pss4.ITEMS.size) { null }
+                                backStack.push(Screen.CheckIn(0))
+                            },
+                            onHistory = {
+                                scope.launch {
+                                    history = checkInRepository.history(isDemo = demoMode)
+                                }
+                                backStack.push(Screen.History)
+                            },
+                            onAbout = { backStack.push(Screen.About) },
+                        )
+
+                        is Screen.CheckIn -> Pss4Screen(
+                            itemIndex = current.itemIndex,
+                            selected = responses[current.itemIndex],
                             onSelect = { value ->
-                                responses = responses.toMutableList().also { it[current.index] = value }
+                                responses = responses.toMutableList()
+                                    .also { it[current.itemIndex] = value }
                             },
                             onNext = {
-                                step = if (current.index == Pss4.ITEMS.lastIndex) {
+                                if (current.itemIndex == Pss4.ITEMS.lastIndex) {
                                     completedSteps = 0
-                                    Step.Analysing
+                                    backStack.push(Screen.Analysing)
                                 } else {
-                                    Step.Questionnaire(current.index + 1)
+                                    backStack.replaceTop(Screen.CheckIn(current.itemIndex + 1))
                                 }
                             },
                             onBack = {
-                                step = if (current.index == 0) Step.Permissions
-                                else Step.Questionnaire(current.index - 1)
+                                if (current.itemIndex == 0) backStack.pop()
+                                else backStack.replaceTop(Screen.CheckIn(current.itemIndex - 1))
                             },
                         )
 
-                        is Step.Analysing -> {
+                        is Screen.Analysing -> {
                             AnalysisScreen(completedSteps = completedSteps)
                             LaunchedEffect(Unit) {
-                                // The step ticks are cosmetic pacing, not fake progress: the
-                                // work below genuinely runs, and on a fast device it would
-                                // otherwise flash past unreadably.
                                 val answers = responses.map { it ?: 0 }
                                 repeat(3) { completedSteps = it + 1; delay(280) }
-                                val analysis = repository.analyse(answers)
+                                val analysis = resultRepository.analyse(answers)
                                 completedSteps = 4
                                 delay(220)
-                                step = Step.Result(analysis)
+                                history = checkInRepository.history(isDemo = demoMode)
+                                lastScore = history.lastOrNull()?.score
+                                // Replaces the stack: backing into a submitted questionnaire
+                                // would show stale answers and invite a second submission.
+                                lastResult = analysis
+                                backStack.replaceAll(Screen.Result(analysis))
                             }
                         }
 
-                        is Step.Result -> ResultScreen(
+                        is Screen.Result -> ResultScreen(
                             result = current.result,
-                            onRestart = {
-                                responses = List(Pss4.ITEMS.size) { null }
-                                step = Step.Onboarding
+                            onDone = { backStack.replaceAll(Screen.Home) },
+                            onAbout = { backStack.push(Screen.About) },
+                        )
+
+                        is Screen.History -> HistoryScreen(
+                            entries = history,
+                            onBack = { backStack.pop() },
+                        )
+
+                        is Screen.About -> AboutScreen(
+                            lastResult = lastResult,
+                            themeChoice = themeChoice,
+                            onThemeChange = { themeChoice = it },
+                            onOpenUsageSettings = {
+                                context.startActivity(gateway.usageAccessSettingsIntent())
                             },
+                            onDeleteHistory = {
+                                scope.launch {
+                                    checkInRepository.deleteAll()
+                                    history = emptyList()
+                                    lastScore = null
+                                }
+                            },
+                            onSecretDemoToggle = {
+                                demoMode = !demoMode
+                                preferences.demoMode = demoMode
+                            },
+                            onBack = { backStack.pop() },
                         )
                     }
                 }
@@ -171,6 +224,5 @@ private fun StressDetectApp() {
         }
     }
 
-    // Persist the theme choice whenever it changes.
     LaunchedEffect(themeChoice) { preferences.themeChoice = themeChoice.name }
 }

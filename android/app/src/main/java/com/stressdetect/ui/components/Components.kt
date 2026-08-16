@@ -2,6 +2,7 @@ package com.stressdetect.ui.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -150,6 +151,25 @@ fun ScreenTitle(text: String, modifier: Modifier = Modifier) {
         color = calm.ink,
         modifier = modifier,
     )
+}
+
+/** Segmented option used by the appearance control in About. */
+@Composable
+fun ThemeOption(label: String, selected: Boolean, onClick: () -> Unit) {
+    val calm = LocalCalmColors.current
+    Surface(
+        modifier = Modifier.clickable(onClick = onClick),
+        color = if (selected) calm.accent.copy(alpha = if (calm.isDark) 0.22f else 0.14f) else calm.card,
+        shape = RoundedCornerShape(10.dp),
+        border = BorderStroke(1.dp, if (selected) calm.accent else calm.track),
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = calm.ink,
+            modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp),
+        )
+    }
 }
 
 /**
