@@ -492,10 +492,11 @@ on *both* bounds — 23:30 on the low edge, 07:10 on the high edge — so
 high-edge ones. Flipping either half of the convention changes the number. The case tests
 the **rule**, not the tolerance, which is the only way to pin a boolean.
 
-### 10. What Phase-6 parity taught (binding on future phases)
+### 10. What verification taught (binding on future phases)
 
-Two findings from building the contract. Both are about the *shape* of the verification,
-not about a threshold, and both generalise beyond this project.
+Findings about the *shape* of the verification rather than about any threshold. Each was
+found by building or running the thing, not by reasoning about it, and each generalises
+beyond this project.
 
 #### 10.1 A model artifact without its preprocessing is INCOMPLETE
 
@@ -567,6 +568,57 @@ the way to the answer, not just the answer:
 only *sometimes* visible in the output, which means an output-only test detects the bug
 only for the inputs where it happens to propagate — and silently certifies the rest. Pin
 every step whose correctness you actually care about.
+
+#### 10.3 Generated prose is untested output — and it fails while looking authoritative
+
+**The finding (Phase 7).** The result screen shipped this sentence to a device:
+
+> "Your **busiest** day was about 1 **less** than your own week's average of 1 a day."
+
+Three things are wrong with it, and every number in it was computed correctly.
+
+The factor description picks the day furthest from the user's own average **in either
+direction**, because that is the day worth mentioning. It then called that day "your
+busiest". But the day furthest from an average is *frequently the quiet one* — and when it
+is, the label is simply false. The sentence also contradicts itself out loud ("1 less than
+an average of 1"), because rounding a 0.7 difference and a 0.7 average to integers made the
+two numbers identical while the words still claimed a difference.
+
+**Why every test passed.** The tests assert *numbers*: the deviation was the right
+deviation, the average was the right average, the ranking was the right ranking. The
+template assembled those correct numbers into a correct string. Nothing in the pipeline
+had an opinion about whether the resulting **sentence was true** — "busiest" is a claim
+about the world that no assertion in the suite ever examined. The failure is not in the
+data layer at all; it is in the one place with no oracle.
+
+**Why this class is dangerous.** Prose is the most confident-looking output a system
+produces. A wrong number invites arithmetic scepticism; a fluent English sentence describing
+a real measurement reads as *interpretation*, and users extend it the trust they extend to
+the measurement. This app is the worst possible place for that — it tells someone something
+about their own week, and they have no way to check it.
+
+Two sibling instances found in the same pass, both "true but absurd": a night-to-night
+variation of 0.004 h rendered as *"this moved by about 0m from night to night"*, and the
+permissions screen telling a user in demo mode that they would "get your questionnaire
+result on its own" — the exact opposite of what demo mode does.
+
+**The rules that follow.**
+1. **Prefer fixed strings to templates.** The suggestion table is a lookup for this reason:
+   fixed copy can be reviewed once, by a human, and stays reviewed.
+2. **A template may only claim what its inputs entail.** "Furthest from average" entails
+   "most unusual"; it does not entail "busiest". If the sentence asserts more than the data
+   supports, the sentence is a bug regardless of the numbers.
+3. **Copy must be read on a device before it ships.** Not previewed, not reasoned about —
+   read, in the rendered layout, with real values. Both bugs above were invisible in the
+   source and obvious on screen in about a second.
+4. **Round for display only after deciding whether there is anything to say.** If the
+   rounded difference and the rounded baseline are equal, there is no finding; say the days
+   were alike instead of narrating a difference the reader cannot see.
+
+**Generalisation:** natural-language output is a class of result that unit tests do not
+cover, in any project. Assertions verify the values a sentence contains; nothing verifies
+the sentence. Treat generated copy as unverified until a person has read it against real
+data, and keep the generated surface as small as the design allows.
 
 ---
 
