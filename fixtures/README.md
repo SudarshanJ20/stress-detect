@@ -54,6 +54,7 @@ A failure names a rule, not a line number.
 
 | case | rule under test | why it would otherwise slip through |
 |---|---|---|
+| `demo_week` | *(not an edge case)* the app's **demo mode** replays this | Every other case is a minimal rule test — four intervals, ~0.7 unlocks a day — which is correct for what it pins but nonsense to show someone as an example week. This one is shaped like a real week (nightly sleep with drift, a morning cluster, daytime gaps, evening use, one late night) and is generated and parity-checked like the rest, so the demo can never drift from verified behaviour |
 | `midnight_wrap_sleep` | circular statistics; `night_key` = midpoint − 12 h | an arithmetic mean of onset 23:30 and wake 07:15 gives mid-afternoon; a naive night key splits one night across two dates |
 | `sleep_band_edge_inside` | `SLEEP_MIDPOINT_BAND` = `[20:00, 12:00)`, wrapping | midpoints land exactly on 20:00 and on 11:59 — both must qualify |
 | `sleep_band_edge_outside` | the same bounds one minute the other way | 19:59 and exactly 12:00 must NOT qualify (upper bound exclusive); also exercises the night-band fallback when no sleep is found |

@@ -107,7 +107,62 @@ def nightly(start_day: str, nights: int, onset: str, wake: str) -> list[tuple[st
     return out
 
 
+def demo_week() -> list[tuple[str, str]]:
+    """A plausible-looking week for DEMO MODE.
+
+    The other cases are minimal traces built to pin one rule each, so they contain a
+    handful of intervals and produce a week with (say) 0.7 unlocks a day — accurate for
+    what they test, but nonsense to show someone as an example week. This case exists so
+    demo mode replays something that reads like a real person's week.
+
+    Volumes are deliberately modest (~8 unlocks/day rather than a realistic 50+) to keep
+    the committed fixture readable; the SHAPE is what matters for a demo — nightly sleep,
+    a morning cluster, daytime gaps, some evening use, one late night.
+    """
+    intervals: list[tuple[str, str]] = []
+    # onset/wake drift a little night to night so the regularity features are non-zero
+    nights = [
+        ("23:18", "07:05"), ("23:42", "07:12"), ("00:05", "07:30"), ("23:05", "06:50"),
+        ("23:55", "07:20"), ("01:10", "08:15"), ("23:30", "07:00"),
+    ]
+    day_locks = [
+        ("07:40", "08:25"), ("09:10", "10:05"), ("11:30", "12:15"),
+        ("13:20", "14:40"), ("16:05", "17:10"), ("19:30", "20:25"), ("21:15", "22:10"),
+    ]
+    for index in range(7):
+        day = dt.date(2013, 4, 8) + dt.timedelta(days=index)
+        onset, wake = nights[index]
+        # An onset after midnight belongs to the FOLLOWING calendar date.
+        onset_day = day + dt.timedelta(days=1) if onset < "12:00" else day
+        wake_day = onset_day if onset < "12:00" else day + dt.timedelta(days=1)
+        intervals.append((f"{onset_day} {onset}", f"{wake_day} {wake}"))
+        # Skip a couple of locks on two days so the daily series actually varies.
+        for lock_index, (start, end) in enumerate(day_locks):
+            if index == 2 and lock_index in (1, 4):
+                continue
+            if index == 5 and lock_index in (0, 2, 6):
+                continue
+            intervals.append((f"{day} {start}", f"{day} {end}"))
+    return intervals
+
+
 CASES = [
+    # ── 0. the demo week (not an edge case — see demo_week above) ─────────────────────
+    case(
+        "demo_week",
+        "A plausible week, used by the app's DEMO MODE. Not an edge case: it exists so a "
+        "demo replays something shaped like a real person's week (nightly sleep with some "
+        "drift, a morning cluster, daytime gaps, evening use, one late night) rather than "
+        "a four-interval rule test. It is still generated and parity-checked like every "
+        "other case, so the demo can never drift from verified behaviour.",
+        "2013-04-15",
+        demo_week(),
+        calls=["2013-04-09 10:15", "2013-04-09 18:40", "2013-04-11 12:05",
+               "2013-04-12 20:30", "2013-04-14 09:50"],
+        sms=["2013-04-08 08:10", "2013-04-08 21:35", "2013-04-10 13:20",
+             "2013-04-11 19:05", "2013-04-13 11:45", "2013-04-14 16:20"],
+    ),
+
     # ── 1. midnight-wrap sleep ────────────────────────────────────────────────────────
     case(
         "midnight_wrap_sleep",
