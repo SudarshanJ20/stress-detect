@@ -32,6 +32,16 @@ motion, social, ambient).
 - **No server-side inference and no remote training database.** Only **derived features**
   may be transported off-device (manual export / participant upload) for research.
 
+## Self-report responses (added with the check-in history)
+- The app stores each check-in's **total score and date only** — never the four individual
+  item responses. The history chart needs the total; item-level answers about someone's
+  sense of control over their own life are more sensitive without being more useful here.
+- Stored on-device in Room, alongside everything else. Never uploaded.
+- Demo-mode check-ins are stored separately and never mix with a participant's real
+  history, so a rehearsal cannot leave a mark on their record.
+- **Participants can erase their own history from inside the app** (About → "Delete my
+  check-in history") without uninstalling or asking anyone.
+
 ## User control
 - Participants may opt out and withdraw at any time.
 - On request, their data is deleted. Retention window: TODO (team).
