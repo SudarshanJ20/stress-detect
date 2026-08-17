@@ -35,7 +35,8 @@ class DemoTraceSource(private val context: Context) {
      * which are correct for what they pin but nonsense to show as an example week. A demo
      * should look like a person's week, not like a boundary test.
      */
-    fun load(caseName: String = DEFAULT_CASE): DemoWindow = read(listOf(caseName)).single()
+    fun load(caseName: String = DEFAULT_CASE): DemoWindow =
+        read(listOf(caseName)).firstOrNull() ?: error("demo case '$caseName' not found in $ASSET")
 
     /**
      * The weeks BEFORE the demo week, oldest last.
@@ -45,10 +46,14 @@ class DemoTraceSource(private val context: Context) {
      * these every row would show a value and no direction — and the comparison, which is the
      * point, would be invisible in the one place it gets shown. They are ordinary fixture
      * cases, generated and parity-checked like the demo week itself.
+     *
+     * A missing case here is skipped rather than fatal. These weeks make the comparison
+     * visible; they are not what demo mode is FOR, and an asset copied before they existed
+     * should cost someone their arrows, not their demo — in the middle of a viva.
      */
     fun loadPriorWeeks(): List<DemoWindow> = read(PRIOR_CASES)
 
-    /** One parse of the trace for however many cases are wanted, in the order asked for. */
+    /** One parse of the trace for however many cases are wanted; absent ones are dropped. */
     private fun read(caseNames: List<String>): List<DemoWindow> {
         val raw = context.assets.open(ASSET).use { it.readBytes() }
         val trace = JSONObject(String(raw, Charsets.UTF_8))
@@ -59,8 +64,8 @@ class DemoTraceSource(private val context: Context) {
             .map { cases.getJSONObject(it) }
             .associateBy { it.getString("name") }
 
-        return caseNames.map { caseName ->
-            val case = byName[caseName] ?: error("demo case '$caseName' not found in $ASSET")
+        return caseNames.mapNotNull { caseName ->
+            val case = byName[caseName] ?: return@mapNotNull null
             val intervals = case.getJSONArray("locked_intervals")
             val calls = case.getJSONArray("calls")
             val sms = case.getJSONArray("sms")
