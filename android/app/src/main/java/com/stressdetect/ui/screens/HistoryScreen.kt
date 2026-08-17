@@ -13,15 +13,18 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import com.stressdetect.data.CheckInRepository
 import com.stressdetect.survey.Pss4
 import com.stressdetect.ui.components.Body
 import com.stressdetect.ui.components.CalmCard
 import com.stressdetect.ui.components.Caption
+import com.stressdetect.ui.components.Eyebrow
 import com.stressdetect.ui.components.QuietButton
 import com.stressdetect.ui.components.ScreenScaffold
 import com.stressdetect.ui.components.ScreenTitle
 import com.stressdetect.ui.components.Sparkline
+import com.stressdetect.ui.content.HistoryStats
 import com.stressdetect.ui.theme.Space
 import java.time.format.DateTimeFormatter
 
@@ -32,8 +35,10 @@ import java.time.format.DateTimeFormatter
  * scores looks steady. Auto-scaling would turn one-point wobble into dramatic peaks — the
  * chart would look most alarming exactly when someone was most stable.
  *
- * No trend line, no "you're improving", no week-on-week percentage. Two check-ins are not a
- * trend, and this app has no basis for telling anyone which direction they are heading.
+ * No trend line and no "you're improving". The stat row does now show the change from last
+ * week, but as a bare point difference: no colour, no arrow, no word for which way it went.
+ * Two check-ins are still not a trend, which is why nothing appears at all until there are
+ * three of them — and this app has no basis for telling anyone which direction is up.
  */
 @Composable
 fun HistoryScreen(
@@ -78,6 +83,8 @@ fun HistoryScreen(
             return@ScreenScaffold
         }
 
+        HistoryStats.build(entries, isDemo)?.let { StatRow(it) }
+
         CalmCard {
             Sparkline(scores = entries.map { it.score }, maxScore = Pss4.MAX_SCORE)
             Spacer(Modifier.height(Space.item))
@@ -108,4 +115,46 @@ fun HistoryScreen(
         Spacer(Modifier.height(Space.block))
         QuietButton("Back", onBack)
     }
+}
+
+/**
+ * Weekly average, the change from the week before, and how many check-ins there have been.
+ *
+ * Three plain columns — no card, no dividers. The chart below is already in a card, and a
+ * second bordered box above it would turn a quiet screen into a dashboard.
+ *
+ * Past a font scale of 1.3 the three stack instead: side by side they would each be a couple
+ * of characters wide and wrap into an unreadable stack anyway, so they may as well do it
+ * deliberately.
+ */
+@Composable
+private fun StatRow(stats: HistoryStats.Stats) {
+    // The change is the one muted value: no green, no red, no arrow. Which direction is
+    // "good" on this scale is not something this app can say.
+    val items = listOfNotNull(
+        Triple("Weekly average", "${stats.averagePercent}%", false),
+        stats.changePoints?.let {
+            Triple("Since last week", HistoryStats.formatChange(it), true)
+        },
+        Triple("Check-ins", "${stats.total}", false),
+    )
+
+    if (LocalDensity.current.fontScale > 1.3f) {
+        Column(verticalArrangement = Arrangement.spacedBy(Space.item)) {
+            items.forEach { (label, value, muted) -> Stat(label, value, muted) }
+        }
+    } else {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Space.item)) {
+            items.forEach { (label, value, muted) ->
+                Column(Modifier.weight(1f)) { Stat(label, value, muted) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun Stat(label: String, value: String, muted: Boolean) {
+    Eyebrow(label)
+    Spacer(Modifier.height(Space.tight))
+    Body(value, muted = muted)
 }
