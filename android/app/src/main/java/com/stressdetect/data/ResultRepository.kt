@@ -88,7 +88,7 @@ class ResultRepository(
 
         return WindowAssembly.assemble(
             locked, calls, sms, vector.labelDate, zone, vector.values, commsIncluded,
-            priorWeeks = priorWeeks(vector.labelDate, database),
+            priorWeeks = WeekFeatures.priorWeeks(vector.labelDate, database),
         )
     }
 
@@ -96,62 +96,17 @@ class ResultRepository(
         val source = DemoTraceSource(context)
         val demo = source.load()
         val zone = ZoneId.of(demo.zoneId)
-        val vector = extractDemo(demo, zone)
+        val vector = WeekFeatures.vectorOf(demo)
 
         // Demo prior weeks come from the fixture, never from the real cache: a rehearsal must
         // not be compared against this phone's actual history, and the real history must not
         // pick up anything a demo left behind.
-        val prior = source.loadPriorWeeks().map { extractDemo(it, ZoneId.of(it.zoneId)).values }
+        val prior = source.loadPriorWeeks().map { WeekFeatures.vectorOf(it).values }
 
         return WindowAssembly.assemble(
             demo.lockedIntervals, demo.calls, demo.sms, demo.labelDate, zone, vector.values,
             commsIncluded = true, priorWeeks = prior,
         )
-    }
-
-    private fun extractDemo(demo: DemoTraceSource.DemoWindow, zone: ZoneId) =
-        FeatureExtractor.extract(
-            locked = demo.lockedIntervals,
-            callTimestamps = demo.calls,
-            smsTimestamps = demo.sms,
-            labelDate = demo.labelDate,
-            zone = zone,
-            hasCalls = true,
-            hasSms = true,
-        )
-
-    /**
-     * The person's own earlier weeks, newest first — the only thing this app ever compares
-     * anyone against.
-     *
-     * Three rules make the comparison mean what it says:
-     *  - **Non-overlapping.** Cached vectors exist for every day the app ran, and windows a
-     *    day apart share six of their seven days. Walking back in 7-day steps takes distinct
-     *    weeks instead of counting the same Tuesday five times.
-     *  - **Same SPEC_VERSION only**, which the DAO already enforces: feature definitions
-     *    changed means the numbers are not the same measurement.
-     *  - **Covered weeks only.** A thin week is not a quiet one, and averaging it in would
-     *    drag someone's "usual" toward a week we could barely see.
-     */
-    private suspend fun priorWeeks(
-        labelDate: LocalDate,
-        database: StressDetectDatabase,
-    ): List<Map<String, Double>> {
-        val rows = database.featureVectorDao()
-            .allForSpecVersion(SpecConstants.SPEC_VERSION)
-            .filter { it.meetsCoverage }
-            .map { LocalDate.parse(it.labelDate) to it }
-            .sortedByDescending { (date, _) -> date }
-
-        val weeks = mutableListOf<Map<String, Double>>()
-        var cutoff = labelDate.minusDays(SpecConstants.WINDOW_DAYS.toLong())
-        for ((date, row) in rows) {
-            if (weeks.size >= MAX_PRIOR_WEEKS) break
-            if (date > cutoff) continue
-            weeks += FeatureVectorMapper.toValues(row)
-            cutoff = date.minusDays(SpecConstants.WINDOW_DAYS.toLong())
-        }
-        return weeks
     }
 
     private fun loadModel(): OnnxStressModel? = try {
@@ -165,12 +120,6 @@ class ResultRepository(
 
     private companion object {
         const val MODEL_ASSET = "stress_model.onnx"
-
-        /**
-         * Four weeks back at most. "Your usual" should be a recent habit, not an average over
-         * a term — someone whose term ended a month ago has a different usual now.
-         */
-        const val MAX_PRIOR_WEEKS = 4
     }
 }
 
