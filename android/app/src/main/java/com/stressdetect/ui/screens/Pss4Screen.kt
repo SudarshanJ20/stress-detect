@@ -69,7 +69,7 @@ fun Pss4Screen(
                     Modifier
                         .size(8.dp)
                         .clip(CircleShape)
-                        .background(if (index == itemIndex) calm.accent else calm.track),
+                        .background(if (index == itemIndex) calm.accent else calm.divider),
                 )
             }
             Spacer(Modifier.weight(1f))
@@ -105,17 +105,24 @@ fun Pss4Screen(
     }
 }
 
+/**
+ * One answer option. The WHOLE ROW is the target, so there is no radio dot — a small circle
+ * beside a full-width tappable row just invites people to aim at the circle.
+ */
 @Composable
 private fun AnchorRow(label: String, isSelected: Boolean, onClick: () -> Unit) {
     val calm = LocalCalmColors.current
     Surface(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
-        color = if (isSelected) calm.accent.copy(alpha = if (calm.isDark) 0.22f else 0.14f) else calm.card,
-        shape = RoundedCornerShape(12.dp),
-        border = BorderStroke(1.dp, if (isSelected) calm.accent else calm.track),
+        color = if (isSelected) calm.accentMuted else calm.card,
+        shape = RoundedCornerShape(Space.buttonRadius),
+        border = BorderStroke(
+            width = if (isSelected) 2.dp else 1.dp,
+            color = if (isSelected) calm.accent else calm.cardBorder,
+        ),
     ) {
         Row(
-            Modifier.fillMaxWidth().padding(horizontal = Space.block, vertical = 16.dp),
+            Modifier.fillMaxWidth().padding(horizontal = Space.block, vertical = Space.card),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
@@ -123,12 +130,6 @@ private fun AnchorRow(label: String, isSelected: Boolean, onClick: () -> Unit) {
                 style = MaterialTheme.typography.bodyLarge,
                 color = calm.ink,
                 modifier = Modifier.weight(1f),
-            )
-            Box(
-                Modifier
-                    .size(if (isSelected) 12.dp else 10.dp)
-                    .clip(CircleShape)
-                    .background(if (isSelected) calm.accent else calm.track),
             )
         }
     }
