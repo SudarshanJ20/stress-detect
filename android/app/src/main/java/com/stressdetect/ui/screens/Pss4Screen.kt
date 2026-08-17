@@ -2,7 +2,6 @@ package com.stressdetect.ui.screens
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,6 +13,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -24,6 +25,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import com.stressdetect.survey.Pss4
 import com.stressdetect.ui.components.Caption
@@ -84,7 +86,12 @@ fun Pss4Screen(
             color = calm.ink,
         )
 
-        Column(verticalArrangement = Arrangement.spacedBy(Space.tight)) {
+        // selectableGroup: the five options are one choice, and a screen reader announces
+        // them as "1 of 5" rather than as five unrelated buttons.
+        Column(
+            Modifier.selectableGroup(),
+            verticalArrangement = Arrangement.spacedBy(Space.tight),
+        ) {
             Pss4.ANCHORS.forEachIndexed { value, anchor ->
                 AnchorRow(
                     label = anchor,
@@ -109,12 +116,20 @@ fun Pss4Screen(
 /**
  * One answer option. The WHOLE ROW is the target, so there is no radio dot — a small circle
  * beside a full-width tappable row just invites people to aim at the circle.
+ *
+ * **`selectable`, not `clickable`.** Sighted users see the selection in the fill and the
+ * border; without the semantics a screen reader announced five identical buttons and no way
+ * to tell which answer was chosen — on a questionnaire, where the previous answer is exactly
+ * what you want to check before moving on. `Role.RadioButton` is what makes the state part
+ * of the announcement.
  */
 @Composable
 private fun AnchorRow(label: String, isSelected: Boolean, onClick: () -> Unit) {
     val calm = LocalCalmColors.current
     Surface(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+        modifier = Modifier
+            .fillMaxWidth()
+            .selectable(selected = isSelected, role = Role.RadioButton, onClick = onClick),
         color = if (isSelected) calm.accentMuted else calm.card,
         shape = RoundedCornerShape(Space.buttonRadius),
         border = BorderStroke(
