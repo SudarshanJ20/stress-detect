@@ -27,6 +27,7 @@ import com.stressdetect.ui.components.ScreenTitle
 import com.stressdetect.ui.components.Sparkline
 import com.stressdetect.ui.content.HistoryStats
 import com.stressdetect.ui.theme.Space
+import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
 /**
@@ -49,40 +50,22 @@ fun HistoryScreen(
 ) {
     val dateFormat = remember { DateTimeFormatter.ofPattern("d MMM") }
 
+    // A chart needs at least three points on DIFFERENT days before it says anything — two
+    // dots joined by a line invite reading a trend into noise. Demo mode is exempt: every
+    // demo check-in lands on today, so the rule would leave the chart permanently hidden and
+    // undemonstrable.
+    val distinctDays = entries.map { it.takenAt }.distinct().size
+    if (entries.isEmpty() || (!isDemo && distinctDays < 3)) {
+        EmptyHistory(entries, onBack)
+        return
+    }
+
     ScreenScaffold(
         Modifier.verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(Space.block),
     ) {
         Spacer(Modifier.height(Space.block))
         ScreenTitle("Your history")
-
-        // A chart needs at least three points on DIFFERENT days before it says anything —
-        // two dots joined by a line invite reading a trend into noise. Demo mode is exempt:
-        // every demo check-in lands on today, so the rule would leave the chart permanently
-        // hidden and undemonstrable.
-        val distinctDays = entries.map { it.takenAt }.distinct().size
-        if (!isDemo && distinctDays < 3) {
-            Body(
-                "Come back after a few check-ins and you'll see how things move.",
-                muted = true,
-            )
-            if (entries.isNotEmpty()) {
-                Spacer(Modifier.height(Space.block))
-                Caption(
-                    if (entries.size == 1) "One so far."
-                    else "${entries.size} so far, on $distinctDays day(s)."
-                )
-            }
-            Spacer(Modifier.height(Space.section))
-            QuietButton("Back", onBack)
-            return@ScreenScaffold
-        }
-        if (entries.isEmpty()) {
-            Body("Come back after a few check-ins and you'll see how things move.", muted = true)
-            Spacer(Modifier.height(Space.section))
-            QuietButton("Back", onBack)
-            return@ScreenScaffold
-        }
 
         HistoryStats.build(entries, isDemo)?.let { StatRow(it) }
 
@@ -115,6 +98,44 @@ fun HistoryScreen(
 
         Spacer(Modifier.height(Space.block))
         QuietButton("Back", onBack)
+    }
+}
+
+/**
+ * Before there is anything to chart.
+ *
+ * The message sits in the MIDDLE of the space rather than at the top of it. Stranded under
+ * the title with four fifths of the screen empty below, it read as a screen that had failed
+ * to load rather than one that is waiting for you — which is a poor thing to show somebody
+ * who has just started using the app.
+ *
+ * It does not scroll as a whole, so the block can be centred against a known height; the
+ * block itself scrolls, so a large system font size makes it scrollable rather than clipped.
+ */
+@Composable
+private fun EmptyHistory(entries: List<CheckInRepository.Entry>, onBack: () -> Unit) {
+    val today = remember { LocalDate.now() }
+
+    ScreenScaffold(fillHeight = true) {
+        Spacer(Modifier.height(Space.block))
+        ScreenTitle("Your history")
+
+        Column(
+            Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.Center,
+        ) {
+            Body("Come back after a few check-ins and you'll see how things move.", muted = true)
+            if (entries.isNotEmpty()) {
+                Spacer(Modifier.height(Space.block))
+                Caption(HistoryStats.countSummary(entries, today))
+            }
+        }
+
+        QuietButton("Back", onBack)
+        Spacer(Modifier.height(Space.block))
     }
 }
 
