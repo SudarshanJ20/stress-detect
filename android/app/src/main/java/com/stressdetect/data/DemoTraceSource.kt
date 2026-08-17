@@ -35,20 +35,36 @@ class DemoTraceSource(private val context: Context) {
      * which are correct for what they pin but nonsense to show as an example week. A demo
      * should look like a person's week, not like a boundary test.
      */
-    fun load(caseName: String = DEFAULT_CASE): DemoWindow {
+    fun load(caseName: String = DEFAULT_CASE): DemoWindow = read(listOf(caseName)).single()
+
+    /**
+     * The weeks BEFORE the demo week, oldest last.
+     *
+     * The result screen compares a week to the person's own earlier weeks, which on a real
+     * phone are the cached vectors of previous runs. A demo has none of those, so without
+     * these every row would show a value and no direction — and the comparison, which is the
+     * point, would be invisible in the one place it gets shown. They are ordinary fixture
+     * cases, generated and parity-checked like the demo week itself.
+     */
+    fun loadPriorWeeks(): List<DemoWindow> = read(PRIOR_CASES)
+
+    /** One parse of the trace for however many cases are wanted, in the order asked for. */
+    private fun read(caseNames: List<String>): List<DemoWindow> {
         val raw = context.assets.open(ASSET).use { it.readBytes() }
         val trace = JSONObject(String(raw, Charsets.UTF_8))
         val zone = trace.getString("parity_timezone")
         val cases = trace.getJSONArray("cases")
 
-        for (i in 0 until cases.length()) {
-            val case = cases.getJSONObject(i)
-            if (case.getString("name") != caseName) continue
+        val byName = (0 until cases.length())
+            .map { cases.getJSONObject(it) }
+            .associateBy { it.getString("name") }
 
+        return caseNames.map { caseName ->
+            val case = byName[caseName] ?: error("demo case '$caseName' not found in $ASSET")
             val intervals = case.getJSONArray("locked_intervals")
             val calls = case.getJSONArray("calls")
             val sms = case.getJSONArray("sms")
-            return DemoWindow(
+            DemoWindow(
                 caseName = caseName,
                 labelDate = LocalDate.parse(case.getString("label_date")),
                 zoneId = zone,
@@ -60,11 +76,11 @@ class DemoTraceSource(private val context: Context) {
                 sms = (0 until sms.length()).map { sms.getLong(it) },
             )
         }
-        error("demo case '$caseName' not found in $ASSET")
     }
 
     private companion object {
         const val ASSET = "synthetic_trace.json"
         const val DEFAULT_CASE = "demo_week"
+        val PRIOR_CASES = listOf("demo_prior_week_1", "demo_prior_week_2")
     }
 }
