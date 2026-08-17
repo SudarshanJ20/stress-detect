@@ -12,6 +12,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import com.stressdetect.data.CheckInRepository
@@ -140,11 +141,21 @@ private fun StatRow(stats: HistoryStats.Stats) {
     )
 
     if (LocalDensity.current.fontScale > 1.3f) {
-        Column(verticalArrangement = Arrangement.spacedBy(Space.item)) {
+        // Wider gaps than between a label and its own value, so stacked items still read as
+        // three separate figures rather than one list.
+        Column(verticalArrangement = Arrangement.spacedBy(Space.block)) {
             items.forEach { (label, value, muted) -> Stat(label, value, muted) }
         }
     } else {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Space.item)) {
+        // Bottom-aligned: on a narrow screen "Weekly average" wraps to two lines and
+        // "Check-ins" does not, and three figures sitting at three different heights looks
+        // like a mistake. Aligning the bottoms puts the figures — the part being read — on
+        // one line whatever the labels do.
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(Space.item),
+            verticalAlignment = Alignment.Bottom,
+        ) {
             items.forEach { (label, value, muted) ->
                 Column(Modifier.weight(1f)) { Stat(label, value, muted) }
             }
