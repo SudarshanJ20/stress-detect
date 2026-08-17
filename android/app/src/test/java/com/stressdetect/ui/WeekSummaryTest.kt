@@ -179,6 +179,40 @@ class WeekSummaryTest {
         assertTrue(result.unavailableReason!!.contains("works either way"))
     }
 
+    /**
+     * The reported symptom on the device was "nothing appears at all". Whatever the state of
+     * the phone, this section owes the reader either rows or a reason — a heading with empty
+     * space under it is the one outcome that tells them nothing and looks broken.
+     */
+    @Test
+    fun `there is never a heading with nothing under it`() {
+        val states = listOf(
+            // usageAccessMissing, meetsCoverage, days, values
+            Triple(true, false, 0.0) to emptyMap<String, Double>(),
+            Triple(false, false, 2.0) to week,
+            Triple(false, true, 7.0) to emptyMap(),                       // granted, no features
+            Triple(false, true, 7.0) to week.mapValues { Double.NaN },    // granted, all missing
+            Triple(false, true, 7.0) to week,                             // the ordinary case
+        )
+        for ((flags, values) in states) {
+            val (missing, coverage, days) = flags
+            val result = WeekSummary.build(
+                weekValues = values,
+                priorWeekValues = emptyMap(),
+                dailyValues = emptyMap(),
+                staticValues = emptyMap(),
+                usageAccessMissing = missing,
+                meetsCoverage = coverage,
+                daysWithData = days,
+            )
+            assertTrue(
+                "missing=$missing coverage=$coverage values=${values.size} produced neither " +
+                    "a row nor a reason — the section would render as an empty heading",
+                result.rows.isNotEmpty() || !result.unavailableReason.isNullOrBlank(),
+            )
+        }
+    }
+
     @Test
     fun `thin coverage says so in days`() {
         val result = WeekSummary.build(

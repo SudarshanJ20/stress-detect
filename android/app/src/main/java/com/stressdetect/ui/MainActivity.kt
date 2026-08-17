@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -21,10 +22,14 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import com.stressdetect.data.AnalysisResult
 import com.stressdetect.data.AppPreferences
 import com.stressdetect.data.CheckInRepository
 import com.stressdetect.data.ExtractionGateway
+import com.stressdetect.data.ExtractionSummary
 import com.stressdetect.data.ResultRepository
 import com.stressdetect.survey.Pss4
 import com.stressdetect.ui.components.DemoBanner
@@ -78,13 +83,29 @@ private fun StressDetectApp() {
     var completedSteps by remember { mutableIntStateOf(0) }
     var history by remember { mutableStateOf<List<CheckInRepository.Entry>>(emptyList()) }
     var lastScore by remember { mutableStateOf<Int?>(null) }
-    // Held so About can show the technical read-out of the most recent check-in.
+    // Held so About can show the technical read-out of the most recent check-in, and what
+    // the OS actually returned the last time the phone was read.
     var lastResult by remember { mutableStateOf<AnalysisResult?>(null) }
+    var lastExtraction by remember { mutableStateOf<ExtractionSummary?>(null) }
 
-    // Usage access is granted in Settings, so there is no callback — it is re-read whenever
-    // the permissions screen is opened.
-    var usageGranted by remember { mutableStateOf(false) }
-    var commsGranted by remember { mutableStateOf(false) }
+    // Usage access is granted in Settings, in another app, with no callback and no result to
+    // await. The only way to know is to ask again every time we come back to the foreground —
+    // asking once, on the way out of the intro, left someone who had just granted it looking
+    // at a screen still asking them to.
+    val permissions = remember {
+        PermissionState(
+            usageAccess = { gateway.isUsageAccessGranted() },
+            comms = { gateway.isCallLogGranted() || gateway.isSmsGranted() },
+        )
+    }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) permissions.refresh()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     val backStack = rememberBackStack(
         if (preferences.hasSeenIntro) Screen.Home else Screen.FirstRun
@@ -92,7 +113,7 @@ private fun StressDetectApp() {
 
     val requestComms = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
-    ) { commsGranted = gateway.isCallLogGranted() || gateway.isSmsGranted() }
+    ) { permissions.refresh() }
 
     // Demo and real check-ins are stored separately, so switching modes reloads the list
     // that belongs to the mode you are now in.
@@ -115,15 +136,14 @@ private fun StressDetectApp() {
                         is Screen.FirstRun -> FirstRunScreen(
                             onContinue = {
                                 preferences.hasSeenIntro = true
-                                usageGranted = gateway.isUsageAccessGranted()
-                                commsGranted = gateway.isCallLogGranted() || gateway.isSmsGranted()
+                                permissions.refresh()
                                 backStack.replaceAll(Screen.Permissions)
                             },
                         )
 
                         is Screen.Permissions -> PermissionsScreen(
-                            usageAccessGranted = usageGranted,
-                            commsGranted = commsGranted,
+                            usageAccessGranted = permissions.usageAccessGranted,
+                            commsGranted = permissions.commsGranted,
                             demoMode = demoMode,
                             onOpenUsageSettings = {
                                 context.startActivity(gateway.usageAccessSettingsIntent())
@@ -158,8 +178,14 @@ private fun StressDetectApp() {
                             },
                             onNext = {
                                 if (current.itemIndex == Pss4.ITEMS.lastIndex) {
-                                    completedSteps = 0
-                                    backStack.push(Screen.Analysing)
+                                    // No default for a missing answer: under reverse scoring
+                                    // it would score 8/16 and look like a real result. The
+                                    // button is disabled until the item is answered, so this
+                                    // holds the invariant rather than handling a live case.
+                                    Pss4.completedResponses(responses)?.let { answers ->
+                                        completedSteps = 0
+                                        backStack.push(Screen.Analysing(answers))
+                                    }
                                 } else {
                                     backStack.replaceTop(Screen.CheckIn(current.itemIndex + 1))
                                 }
@@ -173,9 +199,8 @@ private fun StressDetectApp() {
                         is Screen.Analysing -> {
                             AnalysisScreen(completedSteps = completedSteps)
                             LaunchedEffect(Unit) {
-                                val answers = responses.map { it ?: 0 }
                                 repeat(3) { completedSteps = it + 1; delay(280) }
-                                val analysis = resultRepository.analyse(answers)
+                                val analysis = resultRepository.analyse(current.answers)
                                 completedSteps = 4
                                 delay(220)
                                 history = checkInRepository.history(isDemo = demoMode)
@@ -199,26 +224,33 @@ private fun StressDetectApp() {
                             onBack = { backStack.pop() },
                         )
 
-                        is Screen.About -> AboutScreen(
-                            lastResult = lastResult,
-                            themeChoice = themeChoice,
-                            onThemeChange = { themeChoice = it },
-                            onOpenUsageSettings = {
-                                context.startActivity(gateway.usageAccessSettingsIntent())
-                            },
-                            onDeleteHistory = {
-                                scope.launch {
-                                    checkInRepository.deleteAll()
-                                    history = emptyList()
-                                    lastScore = null
-                                }
-                            },
-                            onSecretDemoToggle = {
-                                demoMode = !demoMode
-                                preferences.demoMode = demoMode
-                            },
-                            onBack = { backStack.pop() },
-                        )
+                        is Screen.About -> {
+                            // Loaded HERE rather than at each call site: About is reached
+                            // from Home and from the result screen, and the read-out went
+                            // missing on the second route when only the first loaded it.
+                            LaunchedEffect(Unit) { lastExtraction = gateway.lastExtraction() }
+                            AboutScreen(
+                                lastResult = lastResult,
+                                lastExtraction = lastExtraction,
+                                themeChoice = themeChoice,
+                                onThemeChange = { themeChoice = it },
+                                onOpenUsageSettings = {
+                                    context.startActivity(gateway.usageAccessSettingsIntent())
+                                },
+                                onDeleteHistory = {
+                                    scope.launch {
+                                        checkInRepository.deleteAll()
+                                        history = emptyList()
+                                        lastScore = null
+                                    }
+                                },
+                                onSecretDemoToggle = {
+                                    demoMode = !demoMode
+                                    preferences.demoMode = demoMode
+                                },
+                                onBack = { backStack.pop() },
+                            )
+                        }
                     }
                 }
             }

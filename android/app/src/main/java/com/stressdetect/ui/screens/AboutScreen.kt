@@ -13,9 +13,11 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import com.stressdetect.data.AnalysisResult
+import com.stressdetect.data.ExtractionSummary
 import com.stressdetect.features.SpecConstants
 import com.stressdetect.survey.Pss4
 import com.stressdetect.ui.components.Body
@@ -30,6 +32,9 @@ import com.stressdetect.ui.content.Factors
 import com.stressdetect.ui.theme.LocalCalmColors
 import com.stressdetect.ui.theme.Space
 import com.stressdetect.ui.theme.ThemeChoice
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 /**
  * Everything technically true about this app, in full.
@@ -46,6 +51,7 @@ import com.stressdetect.ui.theme.ThemeChoice
 @Composable
 fun AboutScreen(
     lastResult: AnalysisResult?,
+    lastExtraction: ExtractionSummary?,
     themeChoice: ThemeChoice,
     onThemeChange: (ThemeChoice) -> Unit,
     onOpenUsageSettings: () -> Unit,
@@ -119,6 +125,12 @@ fun AboutScreen(
             }
         }
 
+        // ── what the OS actually returned ────────────────────────────────────────────
+        // Added after a device reported an empty "What's been going on" with usage access
+        // granted. On screen that state is one sentence, and it covers four different
+        // faults with four different fixes; this says which one it was.
+        lastExtraction?.let { LastReadSection(it) }
+
         // ── the data ─────────────────────────────────────────────────────────────────
         Section("What this app reads")
         Body("·   when your screen went on and off, and when your phone was locked")
@@ -178,3 +190,48 @@ private fun Section(title: String) {
         color = LocalCalmColors.current.ink,
     )
 }
+
+/**
+ * What the OS returned on the last attempt to read this phone.
+ *
+ * Four different faults produce the same sentence on the result screen — the permission was
+ * refused, the OS returned no events, it returned events but no lock/unlock pairs could be
+ * derived from them, or the window was genuinely thin. They need different fixes, so the
+ * counts that tell them apart belong somewhere a person can read them. `extraction_run` has
+ * recorded all of this from the start; nothing displayed it.
+ *
+ * About is the one screen allowed technical language, which is why it is here and not on the
+ * result screen.
+ */
+@Composable
+private fun LastReadSection(extraction: ExtractionSummary) {
+    val time = remember { DateTimeFormatter.ofPattern("d MMM, HH:mm") }
+    val ranAt = remember(extraction.ranAtUtc) {
+        Instant.ofEpochSecond(extraction.ranAtUtc).atZone(ZoneId.systemDefault()).format(time)
+    }
+    val earliest = remember(extraction.earliestEventUtc) {
+        extraction.earliestEventUtc?.let {
+            Instant.ofEpochSecond(it).atZone(ZoneId.systemDefault()).format(time)
+        }
+    }
+
+    Section("What your phone gave us, last time we looked")
+    Caption("$ranAt · usage access ${extraction.usageAccessGranted.yesNo()}")
+    Caption("·   ${extraction.rawEventCount} screen and lock events returned by the system")
+    Caption("·   ${extraction.lockedIntervalCount} lock→unlock stretches derived from them")
+    Caption("·   oldest event the system still had: ${earliest ?: "none"}")
+    Caption(
+        "·   ${extraction.daysWithData?.toInt() ?: 0} days with data — " +
+            "${if (extraction.meetsCoverage) "enough" else "below"} the " +
+            "${SpecConstants.COVERAGE_MIN_DAYS}-day minimum"
+    )
+    Caption("·   call log ${extraction.callLogPermission.yesNo()}, " +
+        "messages ${extraction.smsPermission.yesNo()}")
+    Caption(
+        "Events but no stretches means this device does not report keyguard shown/hidden to " +
+            "apps, which is what the lock intervals are built from. No events at all, with " +
+            "access granted, means the system had nothing left in its ~10-day retention."
+    )
+}
+
+private fun Boolean.yesNo(): String = if (this) "granted" else "not granted"

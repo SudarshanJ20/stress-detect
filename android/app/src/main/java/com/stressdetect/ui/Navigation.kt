@@ -8,6 +8,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.runtime.toMutableStateList
 import com.stressdetect.data.AnalysisResult
+import com.stressdetect.survey.Pss4
 
 /**
  * Where the app can be.
@@ -21,7 +22,23 @@ sealed interface Screen {
     data object Permissions : Screen
     data object Home : Screen
     data class CheckIn(val itemIndex: Int) : Screen
-    data object Analysing : Screen
+
+    /**
+     * The four answers travel WITH the destination.
+     *
+     * They used to live beside it, in state the analysing screen read when it ran. Anything
+     * that reset that state between "See your result" and the scorer — and the scorer runs
+     * after a deliberate pause — produced a scored questionnaire built from defaults rather
+     * than a refusal, because [Pss4.completedResponses]'s predecessor was `?: 0`. Carried
+     * here, and required complete, the answers cannot go missing on the way.
+     */
+    data class Analysing(val answers: List<Int>) : Screen {
+        init {
+            require(answers.size == Pss4.ITEMS.size) {
+                "an analysing destination needs all ${Pss4.ITEMS.size} answers, got ${answers.size}"
+            }
+        }
+    }
     data class Result(val result: AnalysisResult) : Screen
     data object History : Screen
     data object About : Screen
