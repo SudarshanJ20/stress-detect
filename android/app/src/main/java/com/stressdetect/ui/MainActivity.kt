@@ -31,6 +31,7 @@ import com.stressdetect.data.CheckInRepository
 import com.stressdetect.data.ExtractionGateway
 import com.stressdetect.data.ExtractionSummary
 import com.stressdetect.data.ResultRepository
+import com.stressdetect.data.WeekContext
 import com.stressdetect.survey.Pss4
 import com.stressdetect.ui.components.DemoBanner
 import com.stressdetect.ui.screens.AboutScreen
@@ -82,11 +83,13 @@ private fun StressDetectApp() {
     var responses by remember { mutableStateOf(List<Int?>(Pss4.ITEMS.size) { null }) }
     var completedSteps by remember { mutableIntStateOf(0) }
     var history by remember { mutableStateOf<List<CheckInRepository.Entry>>(emptyList()) }
-    var lastScore by remember { mutableStateOf<Int?>(null) }
     // Held so About can show the technical read-out of the most recent check-in, and what
     // the OS actually returned the last time the phone was read.
     var lastResult by remember { mutableStateOf<AnalysisResult?>(null) }
     var lastExtraction by remember { mutableStateOf<ExtractionSummary?>(null) }
+    // Home's line of phone context: the CACHED week, read once when Home is shown. Nothing on
+    // the front door queries the OS or asks for a permission.
+    var weekContext by remember { mutableStateOf<WeekContext?>(null) }
 
     // Usage access is granted in Settings, in another app, with no callback and no result to
     // await. The only way to know is to ask again every time we come back to the foreground —
@@ -119,7 +122,9 @@ private fun StressDetectApp() {
     // that belongs to the mode you are now in.
     LaunchedEffect(demoMode) {
         history = checkInRepository.history(isDemo = demoMode)
-        lastScore = history.lastOrNull()?.score
+    }
+    LaunchedEffect(demoMode, history.size) {
+        weekContext = gateway.weekContext(isDemo = demoMode)
     }
 
     StressDetectTheme(choice = themeChoice) {
@@ -155,7 +160,8 @@ private fun StressDetectApp() {
                         )
 
                         is Screen.Home -> HomeScreen(
-                            lastScore = lastScore,
+                            history = history,
+                            weekContext = weekContext,
                             onCheckIn = {
                                 responses = List(Pss4.ITEMS.size) { null }
                                 backStack.push(Screen.CheckIn(0))
@@ -204,8 +210,7 @@ private fun StressDetectApp() {
                                 completedSteps = 4
                                 delay(220)
                                 history = checkInRepository.history(isDemo = demoMode)
-                                lastScore = history.lastOrNull()?.score
-                                // Replaces the stack: backing into a submitted questionnaire
+                                                        // Replaces the stack: backing into a submitted questionnaire
                                 // would show stale answers and invite a second submission.
                                 lastResult = analysis
                                 backStack.replaceAll(Screen.Result(analysis))
@@ -241,7 +246,6 @@ private fun StressDetectApp() {
                                     scope.launch {
                                         checkInRepository.deleteAll()
                                         history = emptyList()
-                                        lastScore = null
                                     }
                                 },
                                 onSecretDemoToggle = {
