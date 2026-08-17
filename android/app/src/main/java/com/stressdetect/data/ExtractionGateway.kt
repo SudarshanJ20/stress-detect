@@ -41,6 +41,18 @@ class ExtractionGateway(private val context: Context) {
         RetrospectiveExtractor(context).latestCachedVector()
 
     /**
+     * The most recent week this phone already knows about, and the weeks before it.
+     *
+     * For Home, which shows a line of context without anyone checking in. Reads the cache
+     * only — no query, no permission prompt, nothing collected just to fill a screen. `null`
+     * before there is anything cached, which is the honest state on a first run.
+     */
+    suspend fun weekContext(isDemo: Boolean): WeekContext? =
+        WeekFeatures.latest(context, isDemo)?.let {
+            WeekContext(values = it.values, priorValues = WindowAssembly.meanOfWeeks(it.prior))
+        }
+
+    /**
      * What the OS actually gave us on the last attempt.
      *
      * `extraction_run` has recorded this since the beginning and nothing ever displayed it,
@@ -84,4 +96,16 @@ data class ExtractionSummary(
     val earliestEventUtc: Long?,
     val daysWithData: Double?,
     val meetsCoverage: Boolean,
+)
+
+/**
+ * A week of features and what it is compared against, as the UI receives it.
+ *
+ * The same two maps the result screen's rows read, so a line on Home and a row on the result
+ * screen cannot disagree about the same week.
+ */
+data class WeekContext(
+    val values: Map<String, Double>,
+    /** Feature-wise mean of the earlier weeks; empty when there are none to compare against. */
+    val priorValues: Map<String, Double>,
 )
