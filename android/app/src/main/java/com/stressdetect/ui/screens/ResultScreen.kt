@@ -28,6 +28,7 @@ import com.stressdetect.ui.components.ScreenScaffold
 import com.stressdetect.ui.components.SectionHeading
 import com.stressdetect.ui.components.TrendArrow
 import com.stressdetect.ui.content.Band
+import com.stressdetect.ui.content.ThingsThatHelp
 import com.stressdetect.ui.content.WeekSummary
 import com.stressdetect.ui.theme.LocalCalmColors
 import com.stressdetect.ui.theme.Space
@@ -98,6 +99,9 @@ fun ResultScreen(
         WhatsGoingOn(summary)
 
         Spacer(Modifier.height(Space.section))
+        ThingsThatOftenHelp(band)
+
+        Spacer(Modifier.height(Space.section))
         PrimaryButton("Done", onDone)
         Spacer(Modifier.height(Space.tight))
         LinkText("How this works", onAbout)
@@ -134,11 +138,41 @@ private fun WhatsGoingOn(summary: WeekSummary.Result) {
             if (index > 0) Spacer(Modifier.height(Space.block))
             SummaryRow(row)
         }
+    }
+}
 
-        if (summary.rows.any { it.suggestion != null }) {
-            Spacer(Modifier.height(Space.block))
-            Caption("Small things, and none of them are advice about your health.")
+/**
+ * The same four things for everybody, every time.
+ *
+ * Deliberately NOT derived from the score, the week, or anything else — see [ThingsThatHelp].
+ * It sits below the measured rows precisely so the difference is visible: those are about
+ * this person's week, these are just things that tend to help people.
+ *
+ * It renders whatever the phone did or did not give us, which also means the screen has
+ * something on it for someone who declined usage access.
+ */
+@Composable
+private fun ThingsThatOftenHelp(band: Band) {
+    Column(Modifier.fillMaxWidth()) {
+        SectionHeading("Things that often help")
+        Spacer(Modifier.height(Space.block))
+
+        ThingsThatHelp.ITEMS.forEachIndexed { index, item ->
+            if (index > 0) Spacer(Modifier.height(Space.item))
+            Row(Modifier.fillMaxWidth()) {
+                // A bullet, not a card: the restraint here is the point.
+                Body("·", modifier = Modifier.padding(end = Space.item), muted = true)
+                Body(item, modifier = Modifier.weight(1f))
+            }
         }
+
+        ThingsThatHelp.extraFor(band)?.let { extra ->
+            Spacer(Modifier.height(Space.block))
+            Body(extra, muted = true)
+        }
+
+        Spacer(Modifier.height(Space.block))
+        Caption("Small things, and none of them are advice about your health.")
     }
 }
 
