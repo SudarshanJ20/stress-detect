@@ -50,6 +50,14 @@ private val Inter = FontFamily(
         weight = FontWeight.W400,
         variationSettings = FontVariation.Settings(FontVariation.weight(400)),
     ),
+    // W500 exists for the check-in question and nothing else. Without this instance a W500
+    // request does not fail — it silently resolves to the nearest registered face, so the
+    // question would render at 400 or 600 and the weight in the type scale would be a lie.
+    Font(
+        R.font.inter,
+        weight = FontWeight.W500,
+        variationSettings = FontVariation.Settings(FontVariation.weight(500)),
+    ),
     Font(
         R.font.inter,
         weight = FontWeight.W600,
@@ -69,6 +77,21 @@ object CalmType {
         fontSize = 76.sp,
         letterSpacing = (-0.02).em,
         lineHeight = 84.sp,
+    )
+
+    /**
+     * The check-in question. Inter, not Fraunces.
+     *
+     * Fraunces at 30sp ran a published PSS-4 item to seven lines and pushed the answers below
+     * the fold — you had to scroll to find out you could answer. Fraunces is now reserved for
+     * the hero number and screen titles: display sizes, short strings. This is a long sentence
+     * someone has to read carefully, which is a job for the text face.
+     */
+    val question = TextStyle(
+        fontFamily = Inter,
+        fontWeight = FontWeight.W500,
+        fontSize = 22.sp,
+        lineHeight = 30.sp,
     )
 
     /** Eyebrow / label: small, spaced, uppercased at the call site. */

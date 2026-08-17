@@ -29,6 +29,7 @@ import com.stressdetect.survey.Pss4
 import com.stressdetect.ui.components.Caption
 import com.stressdetect.ui.components.PrimaryButton
 import com.stressdetect.ui.components.QuietButton
+import com.stressdetect.ui.theme.CalmType
 import com.stressdetect.ui.theme.LocalCalmColors
 import com.stressdetect.ui.theme.Space
 
@@ -79,7 +80,7 @@ fun Pss4Screen(
         Spacer(Modifier.height(Space.tight))
         Text(
             text = item.text,
-            style = MaterialTheme.typography.headlineSmall,
+            style = CalmType.question,
             color = calm.ink,
         )
 
