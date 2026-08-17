@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import com.stressdetect.ui.components.Body
 import com.stressdetect.ui.components.Caption
 import com.stressdetect.ui.components.PrimaryButton
+import com.stressdetect.ui.components.ScreenScaffold
 import com.stressdetect.ui.components.ScreenTitle
 import com.stressdetect.ui.theme.Space
 
@@ -27,11 +28,8 @@ import com.stressdetect.ui.theme.Space
  */
 @Composable
 fun FirstRunScreen(onContinue: () -> Unit) {
-    Column(
-        Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(Space.screen),
+    ScreenScaffold(
+        Modifier.verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(Space.block),
     ) {
         Spacer(Modifier.height(Space.section))

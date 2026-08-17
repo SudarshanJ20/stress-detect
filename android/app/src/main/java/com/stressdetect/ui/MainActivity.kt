@@ -195,6 +195,7 @@ private fun StressDetectApp() {
 
                         is Screen.History -> HistoryScreen(
                             entries = history,
+                            isDemo = demoMode,
                             onBack = { backStack.pop() },
                         )
 

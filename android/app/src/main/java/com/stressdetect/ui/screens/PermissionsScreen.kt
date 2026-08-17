@@ -16,6 +16,7 @@ import com.stressdetect.ui.components.Caption
 import com.stressdetect.ui.components.Eyebrow
 import com.stressdetect.ui.components.PrimaryButton
 import com.stressdetect.ui.components.QuietButton
+import com.stressdetect.ui.components.ScreenScaffold
 import com.stressdetect.ui.components.ScreenTitle
 import com.stressdetect.ui.theme.Space
 
@@ -33,11 +34,8 @@ fun PermissionsScreen(
     onRequestComms: () -> Unit,
     onContinue: () -> Unit,
 ) {
-    Column(
-        Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(Space.screen),
+    ScreenScaffold(
+        Modifier.verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(Space.block),
     ) {
         Spacer(Modifier.height(Space.tight))

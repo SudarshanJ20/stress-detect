@@ -26,6 +26,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import com.stressdetect.ui.components.Body
 import com.stressdetect.ui.components.Caption
+import com.stressdetect.ui.components.ScreenScaffold
 import com.stressdetect.ui.components.ScreenTitle
 import com.stressdetect.ui.theme.LocalCalmColors
 import com.stressdetect.ui.theme.Space
@@ -47,10 +48,10 @@ fun AnalysisScreen(completedSteps: Int) {
         "Nearly there",
     )
 
-    Column(
-        Modifier.fillMaxSize().padding(Space.screen),
-        verticalArrangement = Arrangement.Center,
+    ScreenScaffold(
         horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+        fillHeight = true,
     ) {
         val transition = rememberInfiniteTransition(label = "pulse")
         Row(horizontalArrangement = Arrangement.spacedBy(Space.item)) {
