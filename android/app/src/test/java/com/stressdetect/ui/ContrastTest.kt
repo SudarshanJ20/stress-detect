@@ -75,6 +75,11 @@ class ContrastTest {
 
         // Selected answer rows: 2dp accent border against the card it sits on.
         assertGraphical("$label: selected option border on card", c.accent, c.card)
+
+        // The trend arrows. They are DRAWN marks, not glyphs, so the 3:1 graphical threshold
+        // is the right one — see `TrendArrow` and the test below for why that distinction is
+        // load-bearing rather than a convenience.
+        assertGraphical("$label: trend arrow on paper", c.accentDeep, c.paper)
     }
 
     @Test
@@ -82,6 +87,24 @@ class ContrastTest {
 
     @Test
     fun `dark theme meets AA for every text pair in use`() = checkTheme("dark", CalmPalette.dark)
+
+    /**
+     * Why the trend arrows are drawn rather than typed.
+     *
+     * As a text glyph, "↑" in `accentDeep` would be normal text on paper and would need
+     * 4.5:1. In light mode it measures 4.42:1 and fails. Drawn, it is a graphical object at
+     * 3:1 and passes with room to spare — and the direction is carried by the shape and by
+     * the words beside it either way, so no meaning rests on the colour.
+     */
+    @Test
+    fun `the arrow colour would FAIL as text in light mode — this is why it is drawn`() {
+        val r = ratio(CalmPalette.light.accentDeep, CalmPalette.light.paper)
+        assertTrue(
+            "accentDeep on paper now measures %.2f:1; if that is >= 4.5 the arrow could be ".format(r) +
+                "a text glyph again — change it deliberately, not by accident",
+            r < 4.5,
+        )
+    }
 
     @Test
     fun `the plain accent is NOT safe under white text — this is why buttons use accentDeep`() {
