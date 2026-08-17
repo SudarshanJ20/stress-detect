@@ -107,6 +107,45 @@ def nightly(start_day: str, nights: int, onset: str, wake: str) -> list[tuple[st
     return out
 
 
+# The demo person's habitual shape. Onset/wake drift a little night to night so the
+# regularity features are non-zero.
+DEMO_NIGHTS = [
+    ("23:18", "07:05"), ("23:42", "07:12"), ("00:05", "07:30"), ("23:05", "06:50"),
+    ("23:55", "07:20"), ("01:10", "08:15"), ("23:30", "07:00"),
+]
+DEMO_DAY_LOCKS = [
+    ("07:40", "08:25"), ("09:10", "10:05"), ("11:30", "12:15"),
+    ("13:20", "14:40"), ("16:05", "17:10"), ("19:30", "20:25"), ("21:15", "22:10"),
+]
+
+
+def demo_intervals(
+    start_day: dt.date,
+    skips: dict[int, set[int]],
+    extra: dict[int, list[tuple[str, str]]] | None = None,
+) -> list[tuple[str, str]]:
+    """One demo week from [DEMO_NIGHTS] + [DEMO_DAY_LOCKS], starting at `start_day`.
+
+    `skips` drops day-lock indices on the given day so the daily series actually varies;
+    `extra` adds further locked blocks to every day (used by the prior weeks).
+    """
+    intervals: list[tuple[str, str]] = []
+    for index in range(7):
+        day = start_day + dt.timedelta(days=index)
+        onset, wake = DEMO_NIGHTS[index]
+        # An onset after midnight belongs to the FOLLOWING calendar date.
+        onset_day = day + dt.timedelta(days=1) if onset < "12:00" else day
+        wake_day = onset_day if onset < "12:00" else day + dt.timedelta(days=1)
+        intervals.append((f"{onset_day} {onset}", f"{wake_day} {wake}"))
+        for lock_index, (start, end) in enumerate(DEMO_DAY_LOCKS):
+            if lock_index in skips.get(index, set()):
+                continue
+            intervals.append((f"{day} {start}", f"{day} {end}"))
+        for start, end in (extra or {}).get(index, []):
+            intervals.append((f"{day} {start}", f"{day} {end}"))
+    return intervals
+
+
 def demo_week() -> list[tuple[str, str]]:
     """A plausible-looking week for DEMO MODE.
 
@@ -119,31 +158,23 @@ def demo_week() -> list[tuple[str, str]]:
     the committed fixture readable; the SHAPE is what matters for a demo — nightly sleep,
     a morning cluster, daytime gaps, some evening use, one late night.
     """
-    intervals: list[tuple[str, str]] = []
-    # onset/wake drift a little night to night so the regularity features are non-zero
-    nights = [
-        ("23:18", "07:05"), ("23:42", "07:12"), ("00:05", "07:30"), ("23:05", "06:50"),
-        ("23:55", "07:20"), ("01:10", "08:15"), ("23:30", "07:00"),
-    ]
-    day_locks = [
-        ("07:40", "08:25"), ("09:10", "10:05"), ("11:30", "12:15"),
-        ("13:20", "14:40"), ("16:05", "17:10"), ("19:30", "20:25"), ("21:15", "22:10"),
-    ]
-    for index in range(7):
-        day = dt.date(2013, 4, 8) + dt.timedelta(days=index)
-        onset, wake = nights[index]
-        # An onset after midnight belongs to the FOLLOWING calendar date.
-        onset_day = day + dt.timedelta(days=1) if onset < "12:00" else day
-        wake_day = onset_day if onset < "12:00" else day + dt.timedelta(days=1)
-        intervals.append((f"{onset_day} {onset}", f"{wake_day} {wake}"))
-        # Skip a couple of locks on two days so the daily series actually varies.
-        for lock_index, (start, end) in enumerate(day_locks):
-            if index == 2 and lock_index in (1, 4):
-                continue
-            if index == 5 and lock_index in (0, 2, 6):
-                continue
-            intervals.append((f"{day} {start}", f"{day} {end}"))
-    return intervals
+    return demo_intervals(dt.date(2013, 4, 8), {2: {1, 4}, 5: {0, 2, 6}})
+
+
+# The prior weeks' extra locked blocks: a long afternoon away-from-phone stretch that
+# drifts by the day. It is what makes the demo week read as MORE screen time than usual
+# without touching the nights, and the drift keeps the days from looking identical (seven
+# identical days would push circadian regularity to ~0.81 and the rhythm row would then
+# report a change that is an artefact of the fixture rather than of the week).
+DEMO_PRIOR_EXTRA = {
+    0: [("14:45", "16:00"), ("17:20", "18:40")],
+    1: [("15:10", "16:00"), ("17:15", "19:10")],
+    2: [("14:45", "16:00"), ("17:30", "19:20")],
+    3: [("15:00", "16:00"), ("17:10", "18:50")],
+    4: [("14:50", "16:00"), ("17:40", "19:15")],
+    5: [("15:20", "16:00"), ("17:15", "19:05")],
+    6: [("14:55", "16:00"), ("17:25", "19:00")],
+}
 
 
 CASES = [
@@ -161,6 +192,49 @@ CASES = [
                "2013-04-12 20:30", "2013-04-14 09:50"],
         sms=["2013-04-08 08:10", "2013-04-08 21:35", "2013-04-10 13:20",
              "2013-04-11 19:05", "2013-04-13 11:45", "2013-04-14 16:20"],
+    ),
+
+    # ── 0a/0b. the two weeks BEFORE the demo week ─────────────────────────────────────
+    # The result screen compares the current week to the same person's own earlier weeks.
+    # On a real phone those come from the cached vectors of previous runs, so a fresh
+    # install — and therefore every demo — has none, and every row would show a value with
+    # no direction. These two exist so the comparison is demonstrable in a viva.
+    #
+    # They are the SAME person: identical nights, identical daily lock skeleton. What
+    # differs is a long afternoon away-block (less phone use than the demo week) and a
+    # busier week of calls and texts, which is what makes the demo read
+    #   screen ↑ a little more   ·   rest → unchanged   ·   comms ↓ quieter   ·   rhythm →
+    # Being ordinary cases they are generated and parity-checked like every other one, so
+    # the demo still cannot show a number the Python side has not verified.
+    case(
+        "demo_prior_week_1",
+        "The week before `demo_week`, for DEMO MODE's own-baseline comparison. Not an edge "
+        "case. Same person and same nights as `demo_week` with a long drifting afternoon "
+        "away-block and a busier comms week, so the demo week reads as more screen time "
+        "and quieter contact than this person's usual.",
+        "2013-04-08",
+        demo_intervals(dt.date(2013, 4, 1), {1: {3}, 4: {2, 5}}, DEMO_PRIOR_EXTRA),
+        calls=["2013-04-01 09:40", "2013-04-01 17:25", "2013-04-02 12:30",
+               "2013-04-03 08:55", "2013-04-03 19:10", "2013-04-04 14:20",
+               "2013-04-05 11:05", "2013-04-06 16:45", "2013-04-07 10:30",
+               "2013-04-07 20:15"],
+        sms=["2013-04-01 07:55", "2013-04-02 09:20", "2013-04-02 21:10",
+             "2013-04-03 13:35", "2013-04-04 18:05", "2013-04-05 08:40",
+             "2013-04-05 22:25", "2013-04-06 12:50", "2013-04-07 15:15"],
+    ),
+    case(
+        "demo_prior_week_2",
+        "The week before `demo_prior_week_1`, so DEMO MODE's comparison averages two "
+        "earlier weeks rather than resting on one. Not an edge case; see "
+        "`demo_prior_week_1`.",
+        "2013-04-01",
+        demo_intervals(dt.date(2013, 3, 25), {0: {2}, 3: {1, 6}}, DEMO_PRIOR_EXTRA),
+        calls=["2013-03-25 10:05", "2013-03-25 19:35", "2013-03-26 13:15",
+               "2013-03-27 09:25", "2013-03-27 18:50", "2013-03-28 15:40",
+               "2013-03-29 11:20", "2013-03-30 17:05", "2013-03-31 12:40"],
+        sms=["2013-03-25 08:25", "2013-03-26 11:50", "2013-03-26 20:40",
+             "2013-03-27 14:10", "2013-03-28 09:05", "2013-03-29 19:30",
+             "2013-03-30 13:45", "2013-03-31 16:55", "2013-03-31 21:20"],
     ),
 
     # ── 1. midnight-wrap sleep ────────────────────────────────────────────────────────
