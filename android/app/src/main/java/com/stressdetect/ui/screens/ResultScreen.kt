@@ -1,5 +1,6 @@
 package com.stressdetect.ui.screens
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -14,6 +15,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import com.stressdetect.data.AnalysisResult
 import com.stressdetect.ui.components.Body
 import com.stressdetect.ui.components.BreathingFigure
@@ -82,7 +84,7 @@ fun ResultScreen(
 
         Spacer(Modifier.height(Space.block))
         Body(band.blurb)
-        Spacer(Modifier.height(Space.tight))
+        Spacer(Modifier.height(Space.item))
         Body(
             // The second sentence is a promise about what follows, so it is only made when
             // something follows. With no usage access there is nothing below but an
@@ -161,10 +163,18 @@ private fun SummaryRow(row: WeekSummary.Row) {
         Column(Modifier.weight(1f)) {
             Body(row.label)
             Spacer(Modifier.height(Space.tight))
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row {
                 // Absent on a first week: there is nothing to point at, so nothing points.
                 row.direction?.let {
-                    TrendArrow(it)
+                    // Centred in ONE line's height rather than in the whole phrase: at a
+                    // large font size the phrase wraps to three lines, and an arrow centred
+                    // on that block floats beside the middle of a sentence.
+                    val line = with(LocalDensity.current) {
+                        MaterialTheme.typography.bodyLarge.lineHeight.toDp()
+                    }
+                    Box(Modifier.height(line), contentAlignment = Alignment.Center) {
+                        TrendArrow(it)
+                    }
                     Spacer(Modifier.width(Space.tight))
                 }
                 Body(row.phrase, muted = true)
