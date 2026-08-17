@@ -19,6 +19,7 @@ import com.stressdetect.ui.components.Body
 import com.stressdetect.ui.components.CalmCard
 import com.stressdetect.ui.components.Caption
 import com.stressdetect.ui.components.QuietButton
+import com.stressdetect.ui.components.ScreenScaffold
 import com.stressdetect.ui.components.ScreenTitle
 import com.stressdetect.ui.components.Sparkline
 import com.stressdetect.ui.theme.Space
@@ -37,26 +38,44 @@ import java.time.format.DateTimeFormatter
 @Composable
 fun HistoryScreen(
     entries: List<CheckInRepository.Entry>,
+    isDemo: Boolean,
     onBack: () -> Unit,
 ) {
     val dateFormat = remember { DateTimeFormatter.ofPattern("d MMM") }
 
-    Column(
-        Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(Space.screen),
+    ScreenScaffold(
+        Modifier.verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(Space.block),
     ) {
         Spacer(Modifier.height(Space.block))
         ScreenTitle("Your history")
 
-        if (entries.isEmpty()) {
-            Body("Nothing here yet. After a few check-ins you'll be able to see how " +
-                "things move about.", muted = true)
-            Spacer(Modifier.height(Space.block))
+        // A chart needs at least three points on DIFFERENT days before it says anything —
+        // two dots joined by a line invite reading a trend into noise. Demo mode is exempt:
+        // every demo check-in lands on today, so the rule would leave the chart permanently
+        // hidden and undemonstrable.
+        val distinctDays = entries.map { it.takenAt }.distinct().size
+        if (!isDemo && distinctDays < 3) {
+            Body(
+                "Come back after a few check-ins and you'll see how things move.",
+                muted = true,
+            )
+            if (entries.isNotEmpty()) {
+                Spacer(Modifier.height(Space.block))
+                Caption(
+                    if (entries.size == 1) "One so far."
+                    else "${entries.size} so far, on $distinctDays day(s)."
+                )
+            }
+            Spacer(Modifier.height(Space.section))
             QuietButton("Back", onBack)
-            return@Column
+            return@ScreenScaffold
+        }
+        if (entries.isEmpty()) {
+            Body("Come back after a few check-ins and you'll see how things move.", muted = true)
+            Spacer(Modifier.height(Space.section))
+            QuietButton("Back", onBack)
+            return@ScreenScaffold
         }
 
         CalmCard {
