@@ -29,6 +29,7 @@ import com.stressdetect.ui.components.ScreenScaffold
 import com.stressdetect.ui.components.ScreenTitle
 import com.stressdetect.ui.components.ThemeOption
 import com.stressdetect.ui.content.Factors
+import com.stressdetect.ui.content.WeekSummary
 import com.stressdetect.ui.theme.LocalCalmColors
 import com.stressdetect.ui.theme.Space
 import com.stressdetect.ui.theme.ThemeChoice
@@ -129,7 +130,7 @@ fun AboutScreen(
         // Added after a device reported an empty "What's been going on" with usage access
         // granted. On screen that state is one sentence, and it covers four different
         // faults with four different fixes; this says which one it was.
-        lastExtraction?.let { LastReadSection(it) }
+        lastExtraction?.let { LastReadSection(it, lastResult) }
 
         // ── the data ─────────────────────────────────────────────────────────────────
         Section("What this app reads")
@@ -204,7 +205,7 @@ private fun Section(title: String) {
  * result screen.
  */
 @Composable
-private fun LastReadSection(extraction: ExtractionSummary) {
+private fun LastReadSection(extraction: ExtractionSummary, lastResult: AnalysisResult?) {
     val time = remember { DateTimeFormatter.ofPattern("d MMM, HH:mm") }
     val ranAt = remember(extraction.ranAtUtc) {
         Instant.ofEpochSecond(extraction.ranAtUtc).atZone(ZoneId.systemDefault()).format(time)
@@ -232,6 +233,36 @@ private fun LastReadSection(extraction: ExtractionSummary) {
             "apps, which is what the lock intervals are built from. No events at all, with " +
             "access granted, means the system had nothing left in its ~10-day retention."
     )
+
+    // What the RESULT screen made of that read. The counts above can look perfectly healthy
+    // while the section above the button shows nothing, and those are different faults: this
+    // says which one happened, in the words the screen itself used.
+    lastResult?.let { result ->
+        val summary = WeekSummary.build(
+            weekValues = result.weekValues,
+            priorWeekValues = result.priorWeekValues,
+            dailyValues = result.dailyValues,
+            staticValues = result.staticValues,
+            usageAccessMissing = result.usageAccessMissing,
+            meetsCoverage = result.meetsCoverage,
+            daysWithData = result.daysWithData,
+        )
+        Spacer(Modifier.height(Space.tight))
+        Caption("Your last check-in, on this read:")
+        Caption(
+            "·   ${result.weekValues.size} features carried through, " +
+                "${result.daysWithData.toInt()} days with data, " +
+                "usage access ${(!result.usageAccessMissing).yesNo()}"
+        )
+        Caption(
+            "·   ${summary.rows.size} rows shown" +
+                if (summary.rows.isEmpty()) ", because: ${summary.unavailableReason}" else ""
+        )
+        Caption(
+            "·   comparing against ${result.priorWeekCount} earlier " +
+                if (result.priorWeekCount == 1) "week" else "weeks"
+        )
+    }
 }
 
 private fun Boolean.yesNo(): String = if (this) "granted" else "not granted"
