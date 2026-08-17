@@ -7,7 +7,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
@@ -39,20 +38,21 @@ fun Sparkline(
 
         val padding = size.height * 0.12f
         val usableHeight = size.height - padding * 2
-        val dotRadius = size.height * 0.035f
 
         fun yFor(score: Int): Float =
             padding + usableHeight * (1f - (score.toFloat() / maxScore))
 
-        // A single reference line at the scale's midpoint, so a dot has something to sit
-        // against without implying a threshold anyone should worry about crossing.
-        drawLine(
-            color = calm.track,
-            start = Offset(0f, yFor(maxScore / 2)),
-            end = Offset(size.width, yFor(maxScore / 2)),
-            strokeWidth = size.height * 0.008f,
-            pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 10f)),
-        )
+        // Hairline gridlines at quarters of the scale. Plain, unlabelled, and identical —
+        // none of them is a threshold anyone should worry about crossing.
+        for (fraction in listOf(0f, 0.25f, 0.5f, 0.75f, 1f)) {
+            val y = padding + usableHeight * (1f - fraction)
+            drawLine(
+                color = calm.divider,
+                start = Offset(0f, y),
+                end = Offset(size.width, y),
+                strokeWidth = 1.dp.toPx(),
+            )
+        }
 
         val step = if (scores.size == 1) 0f else size.width / (scores.size - 1).toFloat()
         val points = scores.mapIndexed { index, score ->
@@ -75,16 +75,17 @@ fun Sparkline(
             }
             drawPath(
                 path = path,
-                color = calm.accent.copy(alpha = 0.7f),
-                style = Stroke(width = size.height * 0.018f, cap = StrokeCap.Round),
+                color = calm.secondary.copy(alpha = 0.4f),
+                style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round),
             )
         }
 
+        // Dots in teal at 8dp; the most recent one solid, the rest slightly back.
         points.forEachIndexed { index, point ->
             val isLatest = index == points.lastIndex
             drawCircle(
-                color = if (isLatest) calm.accent else calm.accent.copy(alpha = 0.45f),
-                radius = if (isLatest) dotRadius * 1.4f else dotRadius,
+                color = if (isLatest) calm.secondary else calm.secondary.copy(alpha = 0.55f),
+                radius = 4.dp.toPx(),
                 center = point,
             )
         }
