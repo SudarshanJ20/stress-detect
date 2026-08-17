@@ -81,6 +81,20 @@ object Pss4 {
         return responses.mapIndexed { index, raw -> ITEMS[index].contribution(raw) }.sum()
     }
 
+    /**
+     * The four selections as answers, or `null` if any item is still unanswered.
+     *
+     * **There is deliberately no default.** Substituting anchor 0 for a missing answer is not
+     * a neutral choice under reverse scoring: it contributes 0 to items 1 and 4 but 4 to
+     * items 2 and 3, so a questionnaire that lost every selection scores 8 out of 16 — a
+     * perfectly ordinary mid-scale result, indistinguishable on screen from one somebody
+     * actually gave. A missing answer must stop the submission, not quietly become one.
+     */
+    fun completedResponses(responses: List<Int?>): List<Int>? {
+        if (responses.size != ITEMS.size) return null
+        return responses.map { it ?: return null }
+    }
+
     /** The score as a 0–100 percentage of the scale's maximum. NOT a percentile. */
     fun percentOfMaximum(totalScore: Int): Int {
         require(totalScore in MIN_SCORE..MAX_SCORE) { "PSS-4 total out of range: $totalScore" }
