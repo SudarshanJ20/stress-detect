@@ -245,20 +245,32 @@ object Observations {
         return present.average()
     }
 
-    /** Hours as everyday words: "7 and a half hours", "45 minutes", "6h 10m" → "6 hours 10". */
+    /**
+     * Hours as everyday words: "7 and a half hours", "45 minutes", "6 hours 43 minutes".
+     *
+     * **Every quantity of time in the app comes through here** — both row phrases and three
+     * observation sentences — which is why the missing unit went out on all of them at once:
+     * this read "6 hours 43", and a number with no unit beside it is the one thing a person
+     * cannot guess at.
+     *
+     * Words rather than "6h 43m", to sit with the "and a half" and "45 minutes" forms that
+     * were already here.
+     */
     internal fun duration(hours: Double): String {
         val totalMinutes = (hours * 60).roundToInt()
-        if (totalMinutes < 60) return "$totalMinutes minutes"
+        if (totalMinutes < 60) return "$totalMinutes ${minuteWord(totalMinutes)}"
         val h = totalMinutes / 60
         val m = totalMinutes % 60
         val hourWord = if (h == 1) "hour" else "hours"
         return when {
             m == 0 -> "$h $hourWord"
-            // "seven and a half hours" reads better than "7h 30m" in a sentence.
+            // "seven and a half hours" reads better than "7 hours 30 minutes" in a sentence.
             m in 25..35 -> "$h and a half $hourWord"
-            else -> "$h $hourWord $m"
+            else -> "$h $hourWord $m ${minuteWord(m)}"
         }
     }
+
+    private fun minuteWord(minutes: Int): String = if (minutes == 1) "minute" else "minutes"
 
     /** Decimal clock hour → everyday time: 23.83 → "11:50pm", 0.0 → "midnight". */
     internal fun clock(hour: Double): String {

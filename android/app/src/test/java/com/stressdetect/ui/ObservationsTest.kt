@@ -126,8 +126,40 @@ class ObservationsTest {
         assertEquals("7 and a half hours", Observations.duration(7.5))
         assertEquals("8 hours", Observations.duration(8.0))
         assertEquals("45 minutes", Observations.duration(0.75))
-        assertEquals("6 hours 10", Observations.duration(6.1667))
         assertEquals("1 hour", Observations.duration(1.0))
+    }
+
+    @Test
+    fun `every duration names its unit`() {
+        // This expectation used to be "6 hours 10", and the app duly printed "Around 6 hours
+        // 43 a day" on a real screen. A number with no unit beside it is the one thing a
+        // reader cannot guess at, so the rule is now asserted rather than assumed.
+        assertEquals("6 hours 10 minutes", Observations.duration(6.1667))
+        assertEquals("6 hours 43 minutes", Observations.duration(6.7167))
+        for (hours in listOf(0.0, 0.017, 0.75, 1.0, 1.017, 3.9, 6.1667, 7.5, 12.75, 23.99)) {
+            val text = Observations.duration(hours)
+            val last = text.substringAfterLast(' ')
+            assertTrue(
+                "'$text' ends in a bare number — no unit",
+                last == "minute" || last == "minutes" || last == "hour" || last == "hours",
+            )
+        }
+    }
+
+    @Test
+    fun `a single minute is not plural`() {
+        assertEquals("1 minute", Observations.duration(1.0 / 60))
+        assertEquals("6 hours 1 minute", Observations.duration(6.0 + 1.0 / 60))
+        assertEquals("0 minutes", Observations.duration(0.0))
+    }
+
+    @Test
+    fun `the half-hour form still wins where it reads better`() {
+        assertEquals("7 and a half hours", Observations.duration(7.5))
+        assertEquals("7 and a half hours", Observations.duration(7.42))   // 25 min, the edge
+        assertEquals("7 and a half hours", Observations.duration(7.58))   // 35 min, the edge
+        assertEquals("7 hours 24 minutes", Observations.duration(7.4))    // just outside
+        assertEquals("7 hours 36 minutes", Observations.duration(7.6))
     }
 
     @Test
