@@ -70,6 +70,9 @@ object WeekSummary {
     /** Above this, days genuinely resemble each other enough to call the week steady. */
     private const val RHYTHM_STEADY = 0.5
 
+    /** How many rows may carry advice. See [capSuggestions]. */
+    private const val MAX_SUGGESTIONS = 2
+
     fun build(
         weekValues: Map<String, Double>,
         priorWeekValues: Map<String, Double>,
@@ -106,7 +109,25 @@ object WeekSummary {
         if (rows.isEmpty()) {
             return Result(emptyList(), "Nothing in this week stood out enough to be worth pointing at.")
         }
-        return Result(rows, null)
+        return Result(capSuggestions(rows), null)
+    }
+
+    /**
+     * At most two rows keep their suggestion, and the ones that MOVED get first claim.
+     *
+     * Four rows each carrying a few lines of advice turns a summary into an advice column —
+     * and the advice, being coloured, ends up louder than the finding it hangs off. Two is
+     * enough to be useful and few enough to skim past.
+     */
+    private fun capSuggestions(rows: List<Row>): List<Row> {
+        val keep = rows
+            .filter { it.suggestion != null }
+            // Stable, so within "moved" and "did not" the rows keep their order.
+            .sortedBy { if (it.direction == Direction.UP || it.direction == Direction.DOWN) 0 else 1 }
+            .take(MAX_SUGGESTIONS)
+            .map { it.id }
+            .toSet()
+        return rows.map { if (it.id in keep) it else it.copy(suggestion = null) }
     }
 
     // ── the four rows ───────────────────────────────────────────────────────────────────

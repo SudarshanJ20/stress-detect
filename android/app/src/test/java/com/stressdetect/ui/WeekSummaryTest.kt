@@ -208,9 +208,31 @@ class WeekSummaryTest {
         )
         assertTrue(row(result, "screen")!!.suggestion!!.contains("app"))
         assertTrue(row(result, "rest")!!.suggestion!!.contains("bed"))
-        assertTrue(row(result, "rhythm")!!.suggestion!!.isNotBlank())
         // Nothing useful to suggest about how many calls someone got, so nothing is said.
         assertNull(row(result, "comms")!!.suggestion)
+    }
+
+    @Test
+    fun `at most two rows carry advice, and the ones that moved get it first`() {
+        val daily = mapOf(
+            "screen_on_fraction" to List(7) { 0.30 },
+            "unlock_count" to List(7) { 70.0 },
+        )
+        val static = mapOf("sleep_duration_median" to 5.0, "circadian_regularity" to 0.1)
+        val result = WeekSummary.build(
+            weekValues = week,
+            // Only the rhythm row moves; the other two are steady on their usual.
+            priorWeekValues = week + mapOf("circadian_regularity" to 0.2),
+            dailyValues = daily,
+            staticValues = static,
+            usageAccessMissing = false, meetsCoverage = true, daysWithData = 7.0,
+        )
+        val withAdvice = result.rows.filter { it.suggestion != null }.map { it.id }
+        assertTrue("four rows of advice is an advice column", withAdvice.size <= 2)
+        assertTrue(
+            "the row that actually moved lost its suggestion to a row that did not: $withAdvice",
+            "rhythm" in withAdvice,
+        )
     }
 
     // ── copy ────────────────────────────────────────────────────────────────────────────
