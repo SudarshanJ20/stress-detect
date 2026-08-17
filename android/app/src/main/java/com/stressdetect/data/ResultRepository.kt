@@ -49,8 +49,9 @@ class ResultRepository(
         }
         model?.close()
 
-        return AnalysisResult(
+        return WindowAssembly.toResult(
             questionnaireScore = questionnaireScore,
+            window = window,
             modelEstimate = estimate?.toDouble(),
             modelUnavailableReason = when {
                 model == null -> "No model is bundled in this build."
@@ -58,37 +59,13 @@ class ResultRepository(
                 else -> null
             },
             contributions = contributions,
-            dailyValues = window.dailySeries,
-            staticValues = window.staticByName,
-            weekValues = window.values,
-            priorWeekValues = window.priorValues,
-            priorWeekCount = window.priorWeekCount,
-            daysWithData = window.daysWithData,
-            meetsCoverage = window.meetsCoverage,
-            commsIncluded = window.commsIncluded,
             isDemo = demo,
         )
     }
 
     // ── window construction ────────────────────────────────────────────────────────────
 
-    private data class Window(
-        val sequence: Array<DoubleArray>,
-        val static: DoubleArray,
-        val dailySeries: Map<String, List<Double>>,
-        val staticByName: Map<String, Double>,
-        /** The flat window vector — the same shape the cache stores, so weeks compare like with like. */
-        val values: Map<String, Double>,
-        /** Feature-wise mean of this person's earlier weeks; empty when there are none. */
-        val priorValues: Map<String, Double>,
-        val priorWeekCount: Int,
-        val daysWithData: Double,
-        val meetsCoverage: Boolean,
-        val commsIncluded: Boolean,
-        val excludedFeatures: Set<String>,
-    )
-
-    private suspend fun deviceWindow(): Window? {
+    private suspend fun deviceWindow(): WindowAssembly.Assembled? {
         val extractor = RetrospectiveExtractor(context)
         val outcome = extractor.run()
         val vector = when (outcome) {
@@ -109,13 +86,13 @@ class ResultRepository(
         val commsIncluded = vector.values.getValue("call_present") > 0.0 ||
             vector.values.getValue("sms_present") > 0.0
 
-        return buildWindow(
+        return WindowAssembly.assemble(
             locked, calls, sms, vector.labelDate, zone, vector.values, commsIncluded,
             priorWeeks = priorWeeks(vector.labelDate, database),
         )
     }
 
-    private fun demoWindow(): Window {
+    private fun demoWindow(): WindowAssembly.Assembled {
         val source = DemoTraceSource(context)
         val demo = source.load()
         val zone = ZoneId.of(demo.zoneId)
@@ -126,7 +103,7 @@ class ResultRepository(
         // pick up anything a demo left behind.
         val prior = source.loadPriorWeeks().map { extractDemo(it, ZoneId.of(it.zoneId)).values }
 
-        return buildWindow(
+        return WindowAssembly.assemble(
             demo.lockedIntervals, demo.calls, demo.sms, demo.labelDate, zone, vector.values,
             commsIncluded = true, priorWeeks = prior,
         )
@@ -175,56 +152,6 @@ class ResultRepository(
             cutoff = date.minusDays(SpecConstants.WINDOW_DAYS.toLong())
         }
         return weeks
-    }
-
-    /** Feature-wise mean across the earlier weeks, skipping the ones where a value is missing. */
-    private fun meanOfWeeks(weeks: List<Map<String, Double>>): Map<String, Double> {
-        if (weeks.isEmpty()) return emptyMap()
-        val names = weeks.flatMap { it.keys }.toSet()
-        return names.mapNotNull { name ->
-            val present = weeks.mapNotNull { it[name]?.takeIf { value -> !value.isNaN() } }
-            if (present.isEmpty()) null else name to present.average()
-        }.toMap()
-    }
-
-    private fun buildWindow(
-        locked: List<LockedInterval>,
-        calls: List<Long>,
-        sms: List<Long>,
-        labelDate: LocalDate,
-        zone: ZoneId,
-        values: Map<String, Double>,
-        commsIncluded: Boolean,
-        priorWeeks: List<Map<String, Double>>,
-    ): Window {
-        val sequence = SequenceFeatures.dynamicSequence(locked, calls, sms, labelDate, zone)
-        val static = SequenceFeatures.staticVector(values, values)
-
-        val dailySeries = SequenceFeatures.DYNAMIC_FEATURE_NAMES.mapIndexed { index, name ->
-            name to sequence.map { it[index] }
-        }.toMap()
-        val staticByName = SequenceFeatures.STATIC_FEATURE_NAMES.mapIndexed { index, name ->
-            name to static[index]
-        }.toMap()
-
-        // Call/SMS features are EXCLUDED from ranking, not scored as zero, when the stream
-        // was unavailable: absent is not the same as average, and the screen says so.
-        val excluded = if (commsIncluded) emptySet() else setOf("call_count", "sms_count")
-
-        val days = values.getValue("days_with_data")
-        return Window(
-            sequence = sequence,
-            static = static,
-            dailySeries = dailySeries,
-            staticByName = staticByName,
-            values = values,
-            priorValues = meanOfWeeks(priorWeeks),
-            priorWeekCount = priorWeeks.size,
-            daysWithData = days,
-            meetsCoverage = days >= SpecConstants.COVERAGE_MIN_DAYS,
-            commsIncluded = commsIncluded,
-            excludedFeatures = excluded,
-        )
     }
 
     private fun loadModel(): OnnxStressModel? = try {
