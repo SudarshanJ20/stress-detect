@@ -39,4 +39,49 @@ class ExtractionGateway(private val context: Context) {
 
     suspend fun latestCachedVector(): FeatureVectorEntity? =
         RetrospectiveExtractor(context).latestCachedVector()
+
+    /**
+     * What the OS actually gave us on the last attempt.
+     *
+     * `extraction_run` has recorded this since the beginning and nothing ever displayed it,
+     * so "there wasn't enough history on this phone" was unanswerable from the device: it
+     * could mean the permission was refused, that the OS returned nothing, that the events
+     * came back but no lock/unlock pair could be derived from them, or that the window was
+     * genuinely thin. Those need different fixes and look identical on screen.
+     */
+    suspend fun lastExtraction(): ExtractionSummary? =
+        StressDetectDatabase.get(context).extractionRunDao().latest()?.let {
+            ExtractionSummary(
+                ranAtUtc = it.ranAtUtc,
+                usageAccessGranted = it.usageAccessGranted,
+                callLogPermission = it.callLogPermission,
+                smsPermission = it.smsPermission,
+                rawEventCount = it.rawEventCount,
+                lockedIntervalCount = it.lockedIntervalCount,
+                earliestEventUtc = it.earliestEventUtc,
+                daysWithData = it.daysWithData,
+                meetsCoverage = it.meetsCoverage,
+            )
+        }
 }
+
+/**
+ * The last extraction attempt, reduced to what a person debugging an empty result needs.
+ *
+ * Deliberately NOT the Room entity: this crosses into the UI, and the entity is free to grow
+ * fields that have no business on a screen.
+ */
+data class ExtractionSummary(
+    val ranAtUtc: Long,
+    val usageAccessGranted: Boolean,
+    val callLogPermission: Boolean,
+    val smsPermission: Boolean,
+    /** Raw screen/lock/power events the OS returned over the queried span. */
+    val rawEventCount: Int,
+    /** Lock→unlock pairs derived from them. Zero with a healthy event count means the OS
+     *  reported screen events but no KEYGUARD pairs — a different problem from silence. */
+    val lockedIntervalCount: Int,
+    val earliestEventUtc: Long?,
+    val daysWithData: Double?,
+    val meetsCoverage: Boolean,
+)
