@@ -55,11 +55,12 @@ object Observations {
             )
         }
         if (!meetsCoverage) {
+            val days = daysWithData.roundToInt()
             return Result(
                 emptyList(),
                 "There wasn't enough history on this phone yet — only " +
-                    "${daysWithData.roundToInt()} day(s) of it. Check back in a few days " +
-                    "and there will be more to look at.",
+                    "${if (days == 1) "one day" else "$days days"} of it. Check back in a " +
+                    "few days and there will be more to look at.",
             )
         }
 

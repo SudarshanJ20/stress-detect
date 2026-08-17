@@ -223,7 +223,7 @@ private fun LastReadSection(extraction: ExtractionSummary, lastResult: AnalysisR
     Caption("·   oldest event the system still had: ${earliest ?: "none"}")
     Caption(
         "·   ${extraction.daysWithData?.toInt() ?: 0} days with data — " +
-            "${if (extraction.meetsCoverage) "enough" else "below"} the " +
+            "${if (extraction.meetsCoverage) "enough for" else "below"} the " +
             "${SpecConstants.COVERAGE_MIN_DAYS}-day minimum"
     )
     Caption("·   call log ${extraction.callLogPermission.yesNo()}, " +

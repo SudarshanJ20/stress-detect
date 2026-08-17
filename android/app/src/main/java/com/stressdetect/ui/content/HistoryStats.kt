@@ -2,6 +2,7 @@ package com.stressdetect.ui.content
 
 import com.stressdetect.data.CheckInRepository
 import com.stressdetect.survey.Pss4
+import java.time.LocalDate
 import kotlin.math.roundToInt
 
 /**
@@ -65,6 +66,25 @@ object HistoryStats {
         if (entries.isEmpty()) return null
         val mean = entries.sumOf { it.score }.toDouble() / entries.size
         return (mean * 100.0 / Pss4.MAX_SCORE).roundToInt()
+    }
+
+    /**
+     * How many check-ins there have been, in words.
+     *
+     * This used to render "7 so far, on 1 day(s)." — a placeholder plural, on screen, in an
+     * app whose whole voice is that it does not read like a lab tool. Days are counted rather
+     * than pluralised because "all today" is what someone actually wants to know when the
+     * chart is still hiding.
+     */
+    fun countSummary(entries: List<CheckInRepository.Entry>, today: LocalDate): String {
+        if (entries.isEmpty()) return ""
+        if (entries.size == 1) return "One so far."
+        val days = entries.map { it.takenAt }.distinct()
+        return when {
+            days.size == 1 && days.single() == today -> "${entries.size} check-ins, all today"
+            days.size == 1 -> "${entries.size} check-ins, all on one day"
+            else -> "${entries.size} check-ins across ${days.size} days"
+        }
     }
 
     /** "+13 pts" / "−2 pts" / "No change" — points, because "+13%" would read as a ratio. */

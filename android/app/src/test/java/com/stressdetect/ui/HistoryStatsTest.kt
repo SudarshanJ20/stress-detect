@@ -3,6 +3,7 @@ package com.stressdetect.ui
 import com.stressdetect.data.CheckInRepository
 import com.stressdetect.ui.content.HistoryStats
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Test
 import java.time.LocalDate
@@ -93,6 +94,40 @@ class HistoryStatsTest {
         assertEquals("−2 pts", HistoryStats.formatChange(-2))
         // "+0 pts" is not a thing anyone says.
         assertEquals("No change", HistoryStats.formatChange(0))
+    }
+
+    @Test
+    fun `the count reads as English, not as a placeholder`() {
+        // It used to render "7 so far, on 1 day(s)." on screen.
+        assertEquals("One so far.", HistoryStats.countSummary(entries(0L to 8), today))
+        assertEquals(
+            "7 check-ins, all today",
+            HistoryStats.countSummary(entries(*Array(7) { 0L to 8 }), today),
+        )
+        assertEquals(
+            "3 check-ins, all on one day",
+            HistoryStats.countSummary(entries(2L to 8, 2L to 4, 2L to 9), today),
+        )
+        assertEquals(
+            "4 check-ins across 2 days",
+            HistoryStats.countSummary(entries(0L to 8, 0L to 4, 3L to 9, 3L to 6), today),
+        )
+        assertEquals("", HistoryStats.countSummary(emptyList(), today))
+    }
+
+    @Test
+    fun `no copy anywhere leaks a plural placeholder`() {
+        val everything = listOf(
+            HistoryStats.countSummary(entries(0L to 8), today),
+            HistoryStats.countSummary(entries(0L to 8, 0L to 4), today),
+            HistoryStats.countSummary(entries(0L to 8, 5L to 4), today),
+            HistoryStats.formatChange(1),
+            HistoryStats.formatChange(-1),
+            HistoryStats.formatChange(0),
+        )
+        for (text in everything) {
+            assertFalse("a placeholder plural reached the screen: $text", text.contains("(s)"))
+        }
     }
 
     @Test
