@@ -63,26 +63,10 @@ object Observations {
             )
         }
 
-        val notable = mutableListOf<Observation>()
-        val fallback = mutableListOf<Observation>()
-
-        lateNights(dailyValues)?.let(notable::add)
-        shortRest(staticValues)?.let(notable::add)
-        bedtimeDrift(staticValues)?.let(notable::add)
-        lateBedtime(staticValues)?.let(notable::add)
-        heavyScreenTime(dailyValues)?.let(notable::add)
-        manyPickups(dailyValues)?.let(notable::add)
-        irregularDays(staticValues)?.let(notable::add)
-
-        bedtime(staticValues)?.let(fallback::add)
-        restLength(staticValues)?.let(fallback::add)
-        steadyDays(staticValues)?.let(fallback::add)
-        screenTime(dailyValues)?.let(fallback::add)
-
         // Notable first, then fill from the always-available set — never two observations
         // about the same underlying thing.
         val chosen = LinkedHashMap<String, Observation>()
-        for (observation in notable + fallback) {
+        for (observation in candidates(dailyValues, staticValues)) {
             if (chosen.size >= MAX_OBSERVATIONS) break
             chosen.putIfAbsent(observation.id.substringBefore(':'), observation)
         }
@@ -94,6 +78,36 @@ object Observations {
             )
         }
         return Result(chosen.values.toList(), null)
+    }
+
+    /**
+     * Every observation this week supports, best first: the ones that only fire when there
+     * is something to say, then the always-available ones.
+     *
+     * [build] takes the top few for its own list. [WeekSummary] walks the whole thing to
+     * find the suggestion tied to a given row, which is why the cap lives in `build` rather
+     * than here — a row whose topic came fourth still deserves its suggestion.
+     */
+    internal fun candidates(
+        daily: Map<String, List<Double>>,
+        static: Map<String, Double>,
+    ): List<Observation> {
+        val notable = listOfNotNull(
+            lateNights(daily),
+            shortRest(static),
+            bedtimeDrift(static),
+            lateBedtime(static),
+            heavyScreenTime(daily),
+            manyPickups(daily),
+            irregularDays(static),
+        )
+        val fallback = listOfNotNull(
+            bedtime(static),
+            restLength(static),
+            steadyDays(static),
+            screenTime(daily),
+        )
+        return notable + fallback
     }
 
     // ── notable: each fires only when there is something to say ─────────────────────────
